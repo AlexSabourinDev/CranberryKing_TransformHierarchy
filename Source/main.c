@@ -15,28 +15,23 @@
 
 void test()
 {
-	cran_mat4x4 l = { 0 };
-	l.m[0] = l.m[5] = l.m[10] = l.m[15] = 1.0f;
-	l.m[3] = 5.0f;
+	cranm_transform_t c = { .pos = {.x = 5.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {.x = 1.0f,.y = 1.0f,.z = 1.0f} };
 
-	cran_mat4x4 r = { 0 };
-	r.m[0] = r.m[5] = r.m[10] = r.m[15] = 3.0f;
+	cranm_transform_t p = { .pos = {.x = 5.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {.x = 5.0f,.y = 5.0f,.z = 5.0f} };
 
-	cran_mat4x4 rm = cran_mul4x4(l, r);
+	cranm_transform_t rt = cranm_transform(c, p);
 
-	cran_mat4x4 t = { 0 };
-	t.m[0] = t.m[5] = t.m[10] = t.m[15] = 3.0f;
-	t.m[3] = 15.0f;
-	assert(memcmp(&rm, &t, sizeof(cran_mat4x4)) == 0);
+	cranm_transform_t t = { .pos = {.x = 30.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {.x = 5.0f,.y = 5.0f,.z = 5.0f} };
+	assert(memcmp(&rt, &t, sizeof(cranm_transform_t)) == 0);
 
-	cranh_hierarchy* hierarchy = cranh_create(2);
-	cranh_handle parent = cranh_add(hierarchy, l);
-	cranh_handle child = cranh_add_with_parent(hierarchy, r, parent);
+	cranh_hierarchy_t* hierarchy = cranh_create(2);
+	cranh_handle_t parent = cranh_add(hierarchy, p);
+	cranh_handle_t child = cranh_add_with_parent(hierarchy, c, parent);
 
-	cranh_transform_locals_to_globals(hierarchy);
+	cranm_transform_locals_to_globals(hierarchy);
 
-	cran_mat4x4 childGlobal = cranh_read_global(hierarchy, child);
-	assert(memcmp(&childGlobal, &t, sizeof(cran_mat4x4)) == 0);
+	cranm_transform_t childGlobal = cranh_read_global(hierarchy, child);
+	assert(memcmp(&childGlobal, &t, sizeof(cranm_transform_t)) == 0);
 
 	cranh_destroy(hierarchy);
 
