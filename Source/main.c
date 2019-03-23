@@ -29,16 +29,16 @@ void test()
 	t.m[3] = 15.0f;
 	assert(memcmp(&rm, &t, sizeof(cran_mat4x4)) == 0);
 
-	cran_hierarchy* hierarchy = cran_hierarchy_create(2);
-	cran_hierarchy_handle parent = cran_hierarchy_add(hierarchy, l);
-	cran_hierarchy_handle child = cran_hierarchy_add_with_parent(hierarchy, r, parent);
+	cranh_hierarchy* hierarchy = cranh_create(2);
+	cranh_handle parent = cranh_add(hierarchy, l);
+	cranh_handle child = cranh_add_with_parent(hierarchy, r, parent);
 
-	cran_hierarchy_transform_locals_to_globals(hierarchy);
+	cranh_transform_locals_to_globals(hierarchy);
 
-	cran_mat4x4 childGlobal = cran_hierarchy_read_global(hierarchy, child);
+	cran_mat4x4 childGlobal = cranh_read_global(hierarchy, child);
 	assert(memcmp(&childGlobal, &t, sizeof(cran_mat4x4)) == 0);
 
-	cran_hierarchy_destroy(hierarchy);
+	cranh_destroy(hierarchy);
 
 }
 

@@ -6,25 +6,25 @@
 // #define CRANBERRY_HIERARCHY_IMPL to enable the implementation in a translation unit
 // #define CRANBERRY_HIERARCHY_DEBUG to enable debug checks
 
-typedef struct _cran_hierarchy cran_hierarchy;
-typedef struct { unsigned int value; } cran_hierarchy_handle;
+typedef struct _cranh_hierarchy cranh_hierarchy;
+typedef struct { unsigned int value; } cranh_handle;
 
-// Create a cran_hierarchy.
-// WARNING: This function creates memory with malloc! It must be released with cran_hierarchy_destroy.
-cran_hierarchy* cran_hierarchy_create(unsigned int maxTransformCount);
-void cran_hierarchy_destroy(cran_hierarchy* hierarchy);
+// Create a cranh_hierarchy.
+// WARNING: This function creates memory with malloc! It must be released with cranh_destroy.
+cranh_hierarchy* cranh_create(unsigned int maxTransformCount);
+void cranh_destroy(cranh_hierarchy* hierarchy);
 
-unsigned int cran_hierarchy_buffer_size(unsigned int maxTransformCount);
-cran_hierarchy* cran_hierarchy_create_from_buffer(void* buffer, unsigned int maxTransformCount);
+unsigned int cranh_buffer_size(unsigned int maxTransformCount);
+cranh_hierarchy* cranh_create_from_buffer(void* buffer, unsigned int maxTransformCount);
 
-cran_hierarchy_handle cran_hierarchy_add(cran_hierarchy* hierarchy, cran_mat4x4 value);
-cran_hierarchy_handle cran_hierarchy_add_with_parent(cran_hierarchy* hierarchy, cran_mat4x4 value, cran_hierarchy_handle handle);
-void cran_hierarchy_transform_locals_to_globals(cran_hierarchy* hierarchy);
+cranh_handle cranh_add(cranh_hierarchy* hierarchy, cran_mat4x4 value);
+cranh_handle cranh_add_with_parent(cranh_hierarchy* hierarchy, cran_mat4x4 value, cranh_handle handle);
+void cranh_transform_locals_to_globals(cranh_hierarchy* hierarchy);
 
-cran_mat4x4 cran_hierarchy_read_local(cran_hierarchy* hierarchy, cran_hierarchy_handle transform);
-void cran_hierarchy_write_local(cran_hierarchy* hierarchy, cran_hierarchy_handle transform, cran_mat4x4 write);
+cran_mat4x4 cranh_read_local(cranh_hierarchy* hierarchy, cranh_handle transform);
+void cranh_write_local(cranh_hierarchy* hierarchy, cranh_handle transform, cran_mat4x4 write);
 
-cran_mat4x4 cran_hierarchy_read_global(cran_hierarchy* hierarchy, cran_hierarchy_handle transform);
+cran_mat4x4 cranh_read_global(cranh_hierarchy* hierarchy, cranh_handle transform);
 
 #ifdef CRANBERRY_HIERARCHY_IMPL
 
@@ -39,133 +39,133 @@ typedef struct
 {
 	unsigned int maxTransformCount;
 	unsigned int currentTransformCount;
-} cran_hierarchy_header;
+} cranh_header;
 
-unsigned int cran_hierarchy_buffer_size(unsigned int maxTransformCount)
+unsigned int cranh_buffer_size(unsigned int maxTransformCount)
 {
-	return (sizeof(cran_mat4x4) * 2 + sizeof(cran_hierarchy_handle)) * maxTransformCount + sizeof(cran_hierarchy_header);
+	return (sizeof(cran_mat4x4) * 2 + sizeof(cranh_handle)) * maxTransformCount + sizeof(cranh_header);
 }
 
-cran_hierarchy* cran_hierarchy_create(unsigned int maxTransformCount)
+cranh_hierarchy* cranh_create(unsigned int maxTransformCount)
 {
-	unsigned int bufferSize = cran_hierarchy_buffer_size(maxTransformCount);
+	unsigned int bufferSize = cranh_buffer_size(maxTransformCount);
 	void* buffer = malloc(bufferSize);
-	return cran_hierarchy_create_from_buffer(buffer, maxTransformCount);
+	return cranh_create_from_buffer(buffer, maxTransformCount);
 }
 
-void cran_hierarchy_destroy(cran_hierarchy* hierarchy)
+void cranh_destroy(cranh_hierarchy* hierarchy)
 {
 	free(hierarchy);
 }
 
-cran_hierarchy* cran_hierarchy_create_from_buffer(void* buffer, unsigned int maxSize)
+cranh_hierarchy* cranh_create_from_buffer(void* buffer, unsigned int maxSize)
 {
-	cran_hierarchy_header* hierarchyHeader = (cran_hierarchy_header*)buffer;
+	cranh_header* hierarchyHeader = (cranh_header*)buffer;
 	hierarchyHeader->maxTransformCount = maxSize;
 	hierarchyHeader->currentTransformCount = 0;
-	return (cran_hierarchy*)hierarchyHeader;
+	return (cranh_hierarchy*)hierarchyHeader;
 }
 
 // Locals are the first buffer.
-cran_mat4x4* cran_hierarchy_get_local(cran_hierarchy* hierarchy, unsigned int index)
+cran_mat4x4* cranh_get_local(cranh_hierarchy* hierarchy, unsigned int index)
 {
 	uint8_t* bufferStart = (uint8_t*)hierarchy;
-	bufferStart += sizeof(cran_hierarchy_header);
+	bufferStart += sizeof(cranh_header);
 	return (cran_mat4x4*)bufferStart + index;
 }
 
 // Globals are the second buffer
-cran_mat4x4* cran_hierarchy_get_global(cran_hierarchy* hierarchy, unsigned int index)
+cran_mat4x4* cranh_get_global(cranh_hierarchy* hierarchy, unsigned int index)
 {
-	cran_hierarchy_header* header = (cran_hierarchy_header*)hierarchy;
+	cranh_header* header = (cranh_header*)hierarchy;
 
 	uint8_t* bufferStart = (uint8_t*)hierarchy;
-	bufferStart += sizeof(cran_hierarchy_header) + sizeof(cran_mat4x4) * header->maxTransformCount;
+	bufferStart += sizeof(cranh_header) + sizeof(cran_mat4x4) * header->maxTransformCount;
 	return (cran_mat4x4*)bufferStart + index;
 }
 
 // Indices are the third buffer
-cran_hierarchy_handle* cran_hierarchy_get_parent(cran_hierarchy* hierarchy, unsigned int index)
+cranh_handle* cranh_get_parent(cranh_hierarchy* hierarchy, unsigned int index)
 {
-	cran_hierarchy_header* header = (cran_hierarchy_header*)hierarchy;
+	cranh_header* header = (cranh_header*)hierarchy;
 
 	uint8_t* bufferStart = (uint8_t*)hierarchy;
-	bufferStart += sizeof(cran_hierarchy_header) + sizeof(cran_mat4x4) * header->maxTransformCount * 2;
-	return (cran_hierarchy_handle*)bufferStart + index;
+	bufferStart += sizeof(cranh_header) + sizeof(cran_mat4x4) * header->maxTransformCount * 2;
+	return (cranh_handle*)bufferStart + index;
 }
 
-cran_hierarchy_handle cran_hierarchy_add(cran_hierarchy* hierarchy, cran_mat4x4 value)
+cranh_handle cranh_add(cranh_hierarchy* hierarchy, cran_mat4x4 value)
 {
-	cran_hierarchy_header* header = (cran_hierarchy_header*)hierarchy;
+	cranh_header* header = (cranh_header*)hierarchy;
 
 #ifdef CRANBERRY_HIERARCHY_DEBUG
 	assert(header->currentTransformCount < header->maxTransformCount);
 #endif // CRANBERRY_HIERARCHY_DEBUG
 
-	cran_mat4x4* local = cran_hierarchy_get_local(hierarchy, header->currentTransformCount);
-	cran_hierarchy_handle* parent = cran_hierarchy_get_parent(hierarchy, header->currentTransformCount);
+	cran_mat4x4* local = cranh_get_local(hierarchy, header->currentTransformCount);
+	cranh_handle* parent = cranh_get_parent(hierarchy, header->currentTransformCount);
 
 	parent->value = ~0;
 	*local = value;
 
-	return (cran_hierarchy_handle){ .value = header->currentTransformCount++ };
+	return (cranh_handle){ .value = header->currentTransformCount++ };
 }
 
-cran_hierarchy_handle cran_hierarchy_add_with_parent(cran_hierarchy* hierarchy, cran_mat4x4 value, cran_hierarchy_handle handle)
+cranh_handle cranh_add_with_parent(cranh_hierarchy* hierarchy, cran_mat4x4 value, cranh_handle handle)
 {
-	cran_hierarchy_header* header = (cran_hierarchy_header*)hierarchy;
+	cranh_header* header = (cranh_header*)hierarchy;
 
 #ifdef CRANBERRY_HIERARCHY_DEBUG
 	assert(header->currentTransformCount < header->maxTransformCount);
 	assert(handle.value < header->currentTransformCount);
 #endif // CRANBERRY_HIERARCHY_DEBUG
 
-	cran_mat4x4* local = cran_hierarchy_get_local(hierarchy, header->currentTransformCount);
-	cran_hierarchy_handle* parent = cran_hierarchy_get_parent(hierarchy, header->currentTransformCount);
+	cran_mat4x4* local = cranh_get_local(hierarchy, header->currentTransformCount);
+	cranh_handle* parent = cranh_get_parent(hierarchy, header->currentTransformCount);
 
 	*parent = handle;
 	*local = value;
 
-	return (cran_hierarchy_handle){ .value = header->currentTransformCount++ };
+	return (cranh_handle){ .value = header->currentTransformCount++ };
 }
 
-cran_mat4x4 cran_hierarchy_read_local(cran_hierarchy* hierarchy, cran_hierarchy_handle transform)
+cran_mat4x4 cranh_read_local(cranh_hierarchy* hierarchy, cranh_handle transform)
 {
 #ifdef CRANBERRY_HIERARCHY_DEBUG
-	cran_hierarchy_header* header = (cran_hierarchy_header*)hierarchy;
+	cranh_header* header = (cranh_header*)hierarchy;
 	assert(transform.value < header->currentTransformCount);
 #endif // CRANBERRY_HIERARCHY_DEBUG
 
-	return *cran_hierarchy_get_local(hierarchy, transform.value);
+	return *cranh_get_local(hierarchy, transform.value);
 }
 
-void cran_hierarchy_write_local(cran_hierarchy* hierarchy, cran_hierarchy_handle transform, cran_mat4x4 write)
+void cranh_write_local(cranh_hierarchy* hierarchy, cranh_handle transform, cran_mat4x4 write)
 {
 #ifdef CRANBERRY_HIERARCHY_DEBUG
-	cran_hierarchy_header* header = (cran_hierarchy_header*)hierarchy;
+	cranh_header* header = (cranh_header*)hierarchy;
 	assert(transform.value < header->currentTransformCount);
 #endif // CRANBERRY_HIERARCHY_DEBUG
 
-	*cran_hierarchy_get_local(hierarchy, transform.value) = write;
+	*cranh_get_local(hierarchy, transform.value) = write;
 }
 
-cran_mat4x4 cran_hierarchy_read_global(cran_hierarchy* hierarchy, cran_hierarchy_handle transform)
+cran_mat4x4 cranh_read_global(cranh_hierarchy* hierarchy, cranh_handle transform)
 {
 #ifdef CRANBERRY_HIERARCHY_DEBUG
-	cran_hierarchy_header* header = (cran_hierarchy_header*)hierarchy;
+	cranh_header* header = (cranh_header*)hierarchy;
 	assert(transform.value < header->currentTransformCount);
 #endif // CRANBERRY_HIERARCHY_DEBUG
 
-	return *cran_hierarchy_get_global(hierarchy, transform.value);
+	return *cranh_get_global(hierarchy, transform.value);
 }
 
-void cran_hierarchy_transform_locals_to_globals(cran_hierarchy* hierarchy)
+void cranh_transform_locals_to_globals(cranh_hierarchy* hierarchy)
 {
-	cran_hierarchy_header* header = (cran_hierarchy_header*)hierarchy;
+	cranh_header* header = (cranh_header*)hierarchy;
 
-	cran_mat4x4* localIter = cran_hierarchy_get_local(hierarchy, 0);
-	cran_mat4x4* globalIter = cran_hierarchy_get_global(hierarchy, 0);
-	cran_hierarchy_handle* parentIter = cran_hierarchy_get_parent(hierarchy, 0);
+	cran_mat4x4* localIter = cranh_get_local(hierarchy, 0);
+	cran_mat4x4* globalIter = cranh_get_global(hierarchy, 0);
+	cranh_handle* parentIter = cranh_get_parent(hierarchy, 0);
 	for (unsigned int i = 0; i < header->currentTransformCount; ++i, ++localIter, ++globalIter, ++parentIter)
 	{
 		if (parentIter->value != ~0)
@@ -174,7 +174,7 @@ void cran_hierarchy_transform_locals_to_globals(cran_hierarchy* hierarchy)
 			assert(parentIter->value < i);
 #endif // CRANBERRY_HIERARCHY_DEBUG
 
-			cran_mat4x4* parent = cran_hierarchy_get_global(hierarchy, parentIter->value);
+			cran_mat4x4* parent = cranh_get_global(hierarchy, parentIter->value);
 			*globalIter = cran_mul4x4(*localIter, *parent);
 		}
 		else
