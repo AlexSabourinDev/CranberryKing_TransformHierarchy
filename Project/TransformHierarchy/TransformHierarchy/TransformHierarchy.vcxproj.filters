@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\3rd">
+      <UniqueIdentifier>{40a168ae-95d3-4c5a-9924-b3ffac11fe55}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\cranberry_math.h">
@@ -21,9 +24,33 @@
     <ClInclude Include="..\..\..\Source\cranberry_hierarchy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Source\3rd\Mist_Profiler.h">
+      <Filter>Header Files\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\3rd\sokol_app.h">
+      <Filter>Header Files\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\3rd\sokol_gfx.h">
+      <Filter>Header Files\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\3rd\sokol_time.h">
+      <Filter>Header Files\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\game_cfg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\game_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Source\game.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Source\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Source\game.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

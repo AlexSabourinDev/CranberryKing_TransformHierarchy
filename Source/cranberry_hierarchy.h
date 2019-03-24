@@ -4,7 +4,7 @@
 #include "cranberry_math.h"
 
 // #define CRANBERRY_HIERARCHY_IMPL to enable the implementation in a translation unit
-// #define CRANBERRY_HIERARCHY_DEBUG to enable debug checks
+// #define CRANBERRY_DEBUG to enable debug checks
 
 // Types
 
@@ -33,6 +33,7 @@ cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int maxTransformCo
 cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value);
 // @brief Add a transform to the hierarchy with a specified parent.
 cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transform_t value, cranh_handle_t parent);
+
 // @brief Transforms all locals to globals
 void cranm_transform_locals_to_globals(cranh_hierarchy_t* hierarchy);
 
@@ -46,6 +47,9 @@ void cranh_write_local(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cran
 // then the global transform will be stale.
 cranm_transform_t cranh_read_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform);
 
+// @brief Write a global transform to the location defined by the handle
+void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform, cranm_transform_t write);
+
 // IMPL
 
 #ifdef CRANBERRY_HIERARCHY_IMPL
@@ -53,9 +57,9 @@ cranm_transform_t cranh_read_global(cranh_hierarchy_t* hierarchy, cranh_handle_t
 #include <stdlib.h>
 #include <stdint.h>
 
-#ifdef CRANBERRY_HIERARCHY_DEBUG
+#ifdef CRANBERRY_DEBUG
 	#include <assert.h>
-#endif // CRANBERRY_HIERARCHY_DEBUG
+#endif // CRANBERRY_DEBUG
 
 typedef struct
 {
@@ -120,14 +124,16 @@ cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value)
 {
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
 
-#ifdef CRANBERRY_HIERARCHY_DEBUG
+#ifdef CRANBERRY_DEBUG
 	assert(header->currentTransformCount < header->maxTransformCount);
-#endif // CRANBERRY_HIERARCHY_DEBUG
+#endif // CRANBERRY_DEBUG
 
 	cranm_transform_t* local = cranh_get_local(hierarchy, header->currentTransformCount);
+	cranm_transform_t* global = cranh_get_global(hierarchy, header->currentTransformCount);
 	cranh_handle_t* parent = cranh_get_parent(hierarchy, header->currentTransformCount);
 
 	parent->value = ~0;
+	*global = value;
 	*local = value;
 
 	return (cranh_handle_t){ .value = header->currentTransformCount++ };
@@ -137,15 +143,17 @@ cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transfo
 {
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
 
-#ifdef CRANBERRY_HIERARCHY_DEBUG
+#ifdef CRANBERRY_DEBUG
 	assert(header->currentTransformCount < header->maxTransformCount);
 	assert(handle.value < header->currentTransformCount);
-#endif // CRANBERRY_HIERARCHY_DEBUG
+#endif // CRANBERRY_DEBUG
 
 	cranm_transform_t* local = cranh_get_local(hierarchy, header->currentTransformCount);
+	cranm_transform_t* global = cranh_get_global(hierarchy, header->currentTransformCount);
 	cranh_handle_t* parent = cranh_get_parent(hierarchy, header->currentTransformCount);
 
 	*parent = handle;
+	*global = cranm_transform(value, *cranh_get_global(hierarchy, handle.value));
 	*local = value;
 
 	return (cranh_handle_t){ .value = header->currentTransformCount++ };
@@ -153,32 +161,50 @@ cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transfo
 
 cranm_transform_t cranh_read_local(cranh_hierarchy_t* hierarchy, cranh_handle_t transform)
 {
-#ifdef CRANBERRY_HIERARCHY_DEBUG
+#ifdef CRANBERRY_DEBUG
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
 	assert(transform.value < header->currentTransformCount);
-#endif // CRANBERRY_HIERARCHY_DEBUG
+#endif // CRANBERRY_DEBUG
 
 	return *cranh_get_local(hierarchy, transform.value);
 }
 
 void cranh_write_local(cranh_hierarchy_t* hierarchy, cranh_handle_t transform, cranm_transform_t write)
 {
-#ifdef CRANBERRY_HIERARCHY_DEBUG
+#ifdef CRANBERRY_DEBUG
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
 	assert(transform.value < header->currentTransformCount);
-#endif // CRANBERRY_HIERARCHY_DEBUG
+#endif // CRANBERRY_DEBUG
 
 	*cranh_get_local(hierarchy, transform.value) = write;
 }
 
 cranm_transform_t cranh_read_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform)
 {
-#ifdef CRANBERRY_HIERARCHY_DEBUG
+#ifdef CRANBERRY_DEBUG
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
 	assert(transform.value < header->currentTransformCount);
-#endif // CRANBERRY_HIERARCHY_DEBUG
+#endif // CRANBERRY_DEBUG
 
 	return *cranh_get_global(hierarchy, transform.value);
+}
+
+void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cranm_transform_t write)
+{
+#ifdef CRANBERRY_DEBUG
+	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	assert(handle.value < header->currentTransformCount);
+#endif // CRANBERRY_DEBUG
+
+	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, handle.value);
+	if (parentHandle.value != ~0)
+	{
+		*cranh_get_local(hierarchy, handle.value) = cranm_inverse_transform(write, *cranh_get_global(hierarchy, parentHandle.value));
+	}
+	else
+	{
+		*cranh_get_local(hierarchy, handle.value) = write;
+	}
 }
 
 void cranm_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
@@ -192,9 +218,9 @@ void cranm_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
 	{
 		if (parentIter->value != ~0)
 		{
-#ifdef CRANBERRY_HIERARCHY_DEBUG
+#ifdef CRANBERRY_DEBUG
 			assert(parentIter->value < i);
-#endif // CRANBERRY_HIERARCHY_DEBUG
+#endif // CRANBERRY_DEBUG
 
 			cranm_transform_t* parent = cranh_get_global(hierarchy, parentIter->value);
 			*globalIter = cranm_transform(*localIter, *parent);

@@ -1,15 +1,49 @@
 ﻿clang-cl.exe : warning : argument unused during compilation: '/GL' [-Wunused-command-line-argument]
 clang-cl.exe : warning : argument unused during compilation: '/Gm-' [-Wunused-command-line-argument]
 clang-cl.exe : warning : argument unused during compilation: '-O3' [-Wunused-command-line-argument]
-  In file included from ..\..\..\Source\main.c:4:
-  In file included from ..\..\..\Source/cranberry_hierarchy.h:4:
-..\..\..\Source/cranberry_math.h(64,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
+  In file included from ..\..\..\Source\game.c:2:
+  In file included from ..\..\..\Source/game.h:3:
+..\..\..\Source/cranberry_math.h(166,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
+  static cranm_quat_t cranm_inverseq(cranm_quat_t q)
+                      ^
+..\..\..\Source/cranberry_math.h(189,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
   static cranm_mat4x4_t cranm_identity4x4()
                         ^
-..\..\..\Source/cranberry_math.h(71,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(196,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
   static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
                         ^
-  2 warnings generated.
+..\..\..\Source/cranberry_math.h(216,23): warning : unused function 'cranm_perspective' [-Wunused-function]
+  static cranm_mat4x4_t cranm_perspective(float near, float far, float fov)
+                        ^
+..\..\..\Source/cranberry_math.h(230,26): warning : unused function 'cranm_transform' [-Wunused-function]
+  static cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t by)
+                           ^
+..\..\..\Source/cranberry_math.h(240,26): warning : unused function 'cranm_inverse_transform' [-Wunused-function]
+  static cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by)
+                           ^
+  6 warnings generated.
+  In file included from ..\..\..\Source\main.c:3:
+  In file included from ..\..\..\Source/game.h:3:
+..\..\..\Source/cranberry_math.h(90,21): warning : unused function 'cranm_normalize3' [-Wunused-function]
+  static cranm_vec3_t cranm_normalize3(cranm_vec3_t v)
+                      ^
+..\..\..\Source/cranberry_math.h(159,21): warning : unused function 'cranm_axis_angleq' [-Wunused-function]
+  static cranm_quat_t cranm_axis_angleq(cranm_vec3_t axis, float angle)
+                      ^
+..\..\..\Source/cranberry_math.h(166,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
+  static cranm_quat_t cranm_inverseq(cranm_quat_t q)
+                      ^
+..\..\..\Source/cranberry_math.h(189,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
+  static cranm_mat4x4_t cranm_identity4x4()
+                        ^
+..\..\..\Source/cranberry_math.h(196,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
+  static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
+                        ^
+  In file included from ..\..\..\Source\main.c:15:
+..\..\..\Source/3rd/sokol_app.h(793,29): warning : unused function '_sapp_translate_key' [-Wunused-function]
+  _SOKOL_PRIVATE sapp_keycode _sapp_translate_key(int scan_code) {
+                              ^
+  6 warnings generated.
   LINK : /LTCG specified but no code generation required; remove /LTCG from the link command line to improve linker performance
   TransformHierarchy.vcxproj -> C:\Users\Alexandre\Desktop\Development\CranberryKing\CranberryKing_TransformHierarchy\Project\TransformHierarchy\x64\Release\TransformHierarchy.exe
   TransformHierarchy.vcxproj -> C:\Users\Alexandre\Desktop\Development\CranberryKing\CranberryKing_TransformHierarchy\Project\TransformHierarchy\x64\Release\TransformHierarchy.pdb (Full PDB)
