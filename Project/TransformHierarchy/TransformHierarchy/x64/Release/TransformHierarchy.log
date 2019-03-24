@@ -3,22 +3,22 @@ clang-cl.exe : warning : argument unused during compilation: '/Gm-' [-Wunused-co
 clang-cl.exe : warning : argument unused during compilation: '-O3' [-Wunused-command-line-argument]
   In file included from ..\..\..\Source\game.c:2:
   In file included from ..\..\..\Source/game.h:3:
-..\..\..\Source/cranberry_math.h(166,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(206,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
   static cranm_quat_t cranm_inverseq(cranm_quat_t q)
                       ^
-..\..\..\Source/cranberry_math.h(189,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(229,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
   static cranm_mat4x4_t cranm_identity4x4()
                         ^
-..\..\..\Source/cranberry_math.h(196,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(236,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
   static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
                         ^
-..\..\..\Source/cranberry_math.h(216,23): warning : unused function 'cranm_perspective' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(256,23): warning : unused function 'cranm_perspective' [-Wunused-function]
   static cranm_mat4x4_t cranm_perspective(float near, float far, float fov)
                         ^
-..\..\..\Source/cranberry_math.h(230,26): warning : unused function 'cranm_transform' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(270,26): warning : unused function 'cranm_transform' [-Wunused-function]
   static cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t by)
                            ^
-..\..\..\Source/cranberry_math.h(240,26): warning : unused function 'cranm_inverse_transform' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(280,26): warning : unused function 'cranm_inverse_transform' [-Wunused-function]
   static cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by)
                            ^
   6 warnings generated.
@@ -27,16 +27,16 @@ clang-cl.exe : warning : argument unused during compilation: '-O3' [-Wunused-com
 ..\..\..\Source/cranberry_math.h(90,21): warning : unused function 'cranm_normalize3' [-Wunused-function]
   static cranm_vec3_t cranm_normalize3(cranm_vec3_t v)
                       ^
-..\..\..\Source/cranberry_math.h(159,21): warning : unused function 'cranm_axis_angleq' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(199,21): warning : unused function 'cranm_axis_angleq' [-Wunused-function]
   static cranm_quat_t cranm_axis_angleq(cranm_vec3_t axis, float angle)
                       ^
-..\..\..\Source/cranberry_math.h(166,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(206,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
   static cranm_quat_t cranm_inverseq(cranm_quat_t q)
                       ^
-..\..\..\Source/cranberry_math.h(189,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(229,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
   static cranm_mat4x4_t cranm_identity4x4()
                         ^
-..\..\..\Source/cranberry_math.h(196,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
+..\..\..\Source/cranberry_math.h(236,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
   static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
                         ^
   In file included from ..\..\..\Source\main.c:15:

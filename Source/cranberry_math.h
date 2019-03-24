@@ -104,11 +104,12 @@ static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
 	cranm_quat_t result;
 
 	__m128 q = _mm_load_ps((float*)&r);
+	__m128 s = _mm_load_ps((float*)&l);
 
-	__m128 w = _mm_set1_ps(l.w);
-	__m128 x = _mm_set1_ps(l.x);
-	__m128 y = _mm_set1_ps(l.y);
-	__m128 z = _mm_set1_ps(l.z);
+	__m128 w = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(3, 3, 3, 3)));
+	__m128 x = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(0, 0, 0, 0)));
+	__m128 y = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(1, 1, 1, 1)));
+	__m128 z = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(2, 2, 2, 2)));
 
 	__m128 rw = _mm_mul_ps(w, q);
 	__m128 rx = _mm_mul_ps(x, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(0, 1, 2, 3))));
@@ -147,6 +148,44 @@ static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
 
 static cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r)
 {
+#ifdef CRANBERRY_MATH_SSE
+	cranm_quat_t result;
+
+	__m128 q = _mm_load_ps((float*)&r);
+	__m128 s = _mm_load_ps((float*)&l);
+
+	__m128 w = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(3, 3, 3, 3)));
+	w = _mm_xor_ps(w, _mm_set_ps(0.0f, -0.0f, -0.0f, -0.0f));
+
+	__m128 x = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(0, 0, 0, 0)));
+	__m128 y = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(1, 1, 1, 1)));
+	__m128 z = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(2, 2, 2, 2)));
+
+	__m128 rw = _mm_mul_ps(w, q);
+	__m128 rx = _mm_mul_ps(x, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(0, 1, 2, 3))));
+	__m128 ry = _mm_mul_ps(y, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(1, 0, 3, 2))));
+	__m128 rz = _mm_mul_ps(z, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(2, 3, 0, 1))));
+
+	__m128 f = _mm_add_ps(rw, _mm_xor_ps(rx, _mm_set_ps(0.0f, 0.0f, -0.0f, 0.0f)));
+	f = _mm_add_ps(f, _mm_xor_ps(ry, _mm_set_ps(0.0f, -0.0f, 0.0f, 0.0f)));
+	f = _mm_add_ps(f, _mm_xor_ps(rz, _mm_set_ps(0.0f, 0.0f, 0.0f, -0.0f)));
+
+	_mm_store_ps((float*)&result, f);
+
+#ifdef CRANBERRY_DEBUG
+	cranm_quat_t test =
+	{
+		.x = -l.w * r.x + l.x * r.w + l.y * r.z - l.z * r.y,
+		.y = -l.w * r.y - l.x * r.z + l.y * r.w + l.z * r.x,
+		.z = -l.w * r.z + l.x * r.y - l.y * r.x + l.z * r.w,
+		.w =  l.w * r.w + l.x * r.x + l.y * r.y + l.z * r.z
+	};
+
+	assert(result.x == test.x && result.y == test.y && result.z == test.z && result.w == test.w);
+#endif // CRANBERRY_DEBUG
+
+	return result;
+#else
 	return (cranm_quat_t)
 	{
 		.x = -l.w * r.x + l.x * r.w + l.y * r.z - l.z * r.y,
@@ -154,6 +193,7 @@ static cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r)
 		.z = -l.w * r.z + l.x * r.y - l.y * r.x + l.z * r.w,
 		.w =  l.w * r.w + l.x * r.x + l.y * r.y + l.z * r.z
 	};
+#endif // CRANBERRY_MATH_SSE
 }
 
 static cranm_quat_t cranm_axis_angleq(cranm_vec3_t axis, float angle)
