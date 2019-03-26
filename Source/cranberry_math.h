@@ -6,6 +6,8 @@
 #ifdef CRANBERRY_MATH_SSE
 #include <immintrin.h>
 #include <emmintrin.h>
+
+#define cranm_shuffle_sse(a, b) _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(a), b))
 #endif // CRANBERRY_MATH_SSE
 
 #ifdef CRANBERRY_DEBUG
@@ -84,7 +86,12 @@ static cranm_vec3_t cranm_scale3(cranm_vec3_t l, cranm_vec3_t r)
 
 static cranm_vec3_t cranm_cross(cranm_vec3_t l, cranm_vec3_t r)
 {
-	return (cranm_vec3_t) { .x = l.y * r.z - l.z * r.y, .y = l.z * r.x - l.x * r.z, .z = l.x * r.y - l.y * r.x };
+	return (cranm_vec3_t) 
+	{ 
+		.x = l.y * r.z - l.z * r.y,
+		.y = l.z * r.x - l.x * r.z,
+		.z = l.x * r.y - l.y * r.x
+	};
 }
 
 static cranm_vec3_t cranm_normalize3(cranm_vec3_t v)
@@ -101,25 +108,24 @@ static cranm_vec3_t cranm_quat_t_xyz(cranm_quat_t q)
 static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
 {
 #ifdef CRANBERRY_MATH_SSE
-	cranm_quat_t result;
-
 	__m128 q = _mm_load_ps((float*)&r);
 	__m128 s = _mm_load_ps((float*)&l);
 
-	__m128 w = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(3, 3, 3, 3)));
-	__m128 x = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(0, 0, 0, 0)));
-	__m128 y = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(1, 1, 1, 1)));
-	__m128 z = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(2, 2, 2, 2)));
+	__m128 w = cranm_shuffle_sse(s, _MM_SHUFFLE(3, 3, 3, 3));
+	__m128 x = cranm_shuffle_sse(s, _MM_SHUFFLE(0, 0, 0, 0));
+	__m128 y = cranm_shuffle_sse(s, _MM_SHUFFLE(1, 1, 1, 1));
+	__m128 z = cranm_shuffle_sse(s, _MM_SHUFFLE(2, 2, 2, 2));
 
 	__m128 rw = _mm_mul_ps(w, q);
-	__m128 rx = _mm_mul_ps(x, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(0, 1, 2, 3))));
-	__m128 ry = _mm_mul_ps(y, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(1, 0, 3, 2))));
-	__m128 rz = _mm_mul_ps(z, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(2, 3, 0, 1))));
+	__m128 rx = _mm_mul_ps(x, cranm_shuffle_sse(q, _MM_SHUFFLE(0, 1, 2, 3)));
+	__m128 ry = _mm_mul_ps(y, cranm_shuffle_sse(q, _MM_SHUFFLE(1, 0, 3, 2)));
+	__m128 rz = _mm_mul_ps(z, cranm_shuffle_sse(q, _MM_SHUFFLE(2, 3, 0, 1)));
 
 	__m128 f = _mm_add_ps(rw, _mm_xor_ps(rx, _mm_set_ps(-0.0f, -0.0f, 0.0f, 0.0f)));
 	f = _mm_add_ps(f, _mm_xor_ps(ry, _mm_set_ps(-0.0f, 0.0f, 0.0f, -0.0f)));
 	f = _mm_add_ps(f, _mm_xor_ps(rz, _mm_set_ps(-0.0f, 0.0f, -0.0f, 0.0f)));
 
+	cranm_quat_t result;
 	_mm_store_ps((float*)&result, f);
 
 #ifdef CRANBERRY_DEBUG
@@ -149,27 +155,26 @@ static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
 static cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r)
 {
 #ifdef CRANBERRY_MATH_SSE
-	cranm_quat_t result;
-
 	__m128 q = _mm_load_ps((float*)&r);
 	__m128 s = _mm_load_ps((float*)&l);
 
-	__m128 w = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(3, 3, 3, 3)));
+	__m128 w = cranm_shuffle_sse(s, _MM_SHUFFLE(3, 3, 3, 3));
 	w = _mm_xor_ps(w, _mm_set_ps(0.0f, -0.0f, -0.0f, -0.0f));
 
-	__m128 x = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(0, 0, 0, 0)));
-	__m128 y = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(1, 1, 1, 1)));
-	__m128 z = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s), _MM_SHUFFLE(2, 2, 2, 2)));
+	__m128 x = cranm_shuffle_sse(s, _MM_SHUFFLE(0, 0, 0, 0));
+	__m128 y = cranm_shuffle_sse(s, _MM_SHUFFLE(1, 1, 1, 1));
+	__m128 z = cranm_shuffle_sse(s, _MM_SHUFFLE(2, 2, 2, 2));
 
 	__m128 rw = _mm_mul_ps(w, q);
-	__m128 rx = _mm_mul_ps(x, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(0, 1, 2, 3))));
-	__m128 ry = _mm_mul_ps(y, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(1, 0, 3, 2))));
-	__m128 rz = _mm_mul_ps(z, _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(q), _MM_SHUFFLE(2, 3, 0, 1))));
+	__m128 rx = _mm_mul_ps(x, cranm_shuffle_sse(q, _MM_SHUFFLE(0, 1, 2, 3)));
+	__m128 ry = _mm_mul_ps(y, cranm_shuffle_sse(q, _MM_SHUFFLE(1, 0, 3, 2)));
+	__m128 rz = _mm_mul_ps(z, cranm_shuffle_sse(q, _MM_SHUFFLE(2, 3, 0, 1)));
 
 	__m128 f = _mm_add_ps(rw, _mm_xor_ps(rx, _mm_set_ps(0.0f, 0.0f, -0.0f, 0.0f)));
 	f = _mm_add_ps(f, _mm_xor_ps(ry, _mm_set_ps(0.0f, -0.0f, 0.0f, 0.0f)));
 	f = _mm_add_ps(f, _mm_xor_ps(rz, _mm_set_ps(0.0f, 0.0f, 0.0f, -0.0f)));
 
+	cranm_quat_t result;
 	_mm_store_ps((float*)&result, f);
 
 #ifdef CRANBERRY_DEBUG

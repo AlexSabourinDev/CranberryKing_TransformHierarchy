@@ -10,7 +10,7 @@ const char* shader_VertDefault3D = "#version 330\n" RENDER_SHADER_STRINGIFY
 uniform float aspect;
 uniform mat4x4 viewProjection;
 
-in vec3 scale;
+in float scale;
 in vec3 position;
 in vec4 rotation;
 in vec3 color;

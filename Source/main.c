@@ -31,7 +31,7 @@ void test()
 
 	cranm_transform_t rt = cranm_transform(c, p);
 
-	cranm_transform_t t = { .pos = {.x = 30.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {.x = 5.0f,.y = 5.0f,.z = 5.0f} };
+	cranm_transform_t t = { .pos = {.x = 30.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {5.0f, 5.0f, 5.0f} };
 	assert(memcmp(&rt, &t, sizeof(cranm_transform_t)) == 0);
 
 	cranh_hierarchy_t* hierarchy = cranh_create(2);
@@ -60,7 +60,7 @@ static uint64_t time_LastFrame = 0;
 const uint8_t render_SampleCount = 4;
 static sg_draw_state render_DrawState;
 
-#define render_MaxInstanceCount 100000
+#define render_MaxInstanceCount 1000000
 game_instance_t render_InstanceBuffer[render_MaxInstanceCount];
 
 typedef struct
@@ -126,7 +126,7 @@ void core_init(void)
 			{ 
 				[0] = (sg_vertex_attr_desc) {.name = "rotation", .format = SG_VERTEXFORMAT_FLOAT4, .offset = offsetof(game_instance_t, transform) + offsetof(cranm_transform_t, rot), .stride = sizeof(game_instance_t)},
 				[1] = (sg_vertex_attr_desc) { .name = "position",.format = SG_VERTEXFORMAT_FLOAT3, .offset = offsetof(game_instance_t, transform) + offsetof(cranm_transform_t, pos), .stride = sizeof(game_instance_t) },
-				[2] = (sg_vertex_attr_desc) { .name = "scale",.format = SG_VERTEXFORMAT_FLOAT3,.offset = offsetof(game_instance_t, transform) + offsetof(cranm_transform_t, scale), .stride = sizeof(game_instance_t) },
+				[2] = (sg_vertex_attr_desc) { .name = "scale",.format = SG_VERTEXFORMAT_FLOAT,.offset = offsetof(game_instance_t, transform) + offsetof(cranm_transform_t, scale), .stride = sizeof(game_instance_t) },
 				[3] = (sg_vertex_attr_desc) { .name = "color",.format = SG_VERTEXFORMAT_FLOAT3,.offset = offsetof(game_instance_t, color),.stride = sizeof(game_instance_t) }
 			}
 		},
@@ -134,7 +134,7 @@ void core_init(void)
 		.index_type = SG_INDEXTYPE_UINT16,
 		.depth_stencil =
 		{
-			.depth_write_enabled = false
+			.depth_write_enabled = true
 		},
 
 		.rasterizer = { .cull_mode = SG_CULLMODE_NONE,.sample_count = render_SampleCount },

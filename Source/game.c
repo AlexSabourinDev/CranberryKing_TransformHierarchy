@@ -15,7 +15,7 @@ static float randf(float min, float max)
 }
 
 #define PI 3.14159f
-#define max_entity_count 100000
+#define max_entity_count 1000000
 cranh_hierarchy_t* transform_hierarchy;
 
 const float phys_gravity_a = -9.807f;
@@ -47,12 +47,12 @@ void phys_tick(float delta)
 
 			// Apply gravity
 			{
-				phys_vel_y[i] = phys_vel_y[i] + phys_gravity_a * delta;
+				phys_vel_y[i] = phys_vel_y[i] + phys_gravity_a * phys_fixed_tick;
 			}
 
 			// Apply velocity
 			{
-				cranm_vec3_t dv = cranm_scale((cranm_vec3_t) { .x = phys_vel_x[i], .y = phys_vel_y[i], .z = phys_vel_z[i] }, delta);
+				cranm_vec3_t dv = cranm_scale((cranm_vec3_t) { .x = phys_vel_x[i], .y = phys_vel_y[i], .z = phys_vel_z[i] }, phys_fixed_tick);
 				global_transform.pos = cranm_add3(global_transform.pos, dv);
 			}
 
@@ -92,7 +92,7 @@ void game_init(void)
 		phys_vel_x[phys_entity_count] = 0.0f;
 		phys_vel_y[phys_entity_count] = 0.0f;
 		phys_vel_z[phys_entity_count] = 0.0f;
-		phys_bounce[phys_entity_count] = randf(0.8f, 0.9f);
+		phys_bounce[phys_entity_count] = randf(0.75f, 0.99f);
 		phys_entity_count++;
 
 		render_handles[render_count] = h;
@@ -109,13 +109,6 @@ void game_init(void)
 			cranh_handle_t ch = cranh_add_with_parent(transform_hierarchy, c, h);
 			render_handles[render_count] = ch;
 			render_count++;
-
-			phys_handle[phys_entity_count] = ch;
-			phys_vel_x[phys_entity_count] = 0.0f;
-			phys_vel_y[phys_entity_count] = 0.0f;
-			phys_vel_z[phys_entity_count] = 0.0f;
-			phys_bounce[phys_entity_count] = randf(0.8f, 0.9f);
-			phys_entity_count++;
 		}
 	}
 }
@@ -129,7 +122,7 @@ void game_tick(float delta)
 	MIST_PROFILE_END("game", "phys_tick");
 
 	MIST_PROFILE_BEGIN("game", "transform_tick");
-	cranm_transform_locals_to_globals(transform_hierarchy);
+	cranh_transform_locals_to_globals(transform_hierarchy);
 	MIST_PROFILE_END("game", "transform_tick");
 
 	MIST_PROFILE_END("game", "game_tick");
