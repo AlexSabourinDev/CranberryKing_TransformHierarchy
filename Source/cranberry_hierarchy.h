@@ -57,30 +57,58 @@ void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform, 
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifdef CRANBERRY_DEBUG
 	#include <assert.h>
 #endif // CRANBERRY_DEBUG
 
+#define cranh_dirty_start_flag 0x02
+#define cranh_dirty_start_bit_mask 0xAA
+#define cranh_dirty_end_flag 0x01
+#define cranh_dirty_end_bit_mask 0x55
+#define cranh_invalid_parent ~0
+
+typedef struct
+{
+	unsigned int start;
+	unsigned int end;
+} cranh_dirty_scheme_header_t;
+
+unsigned int cranh_dirty_scheme_size(unsigned int maxTransformCount)
+{
+	return sizeof(cranh_dirty_scheme_header_t) + sizeof(uint32_t) * (maxTransformCount / 16 + 1);
+}
+
+void cranh_dirty_add_interval(cranh_dirty_scheme_header_t* intervalSetHeader, unsigned int min, unsigned int max)
+{
+#ifdef CRANBERRY_DEBUG
+	assert(min <= max);
+#endif // CRANBERRY_DEBUG
+
+	uint32_t* dirtyStream = (uint32_t*)(intervalSetHeader + 1);
+	uint32_t* dirtyStart = dirtyStream + (min >> 4);
+	*dirtyStart = *dirtyStart | (cranh_dirty_start_flag << ((min & 0x0F) << 1));
+
+	uint32_t* dirtyEnd = dirtyStream + (max >> 4);
+	*dirtyEnd = *dirtyEnd | (cranh_dirty_end_flag << ((max & 0x0F) << 1));
+
+	intervalSetHeader->start = min < intervalSetHeader->start ? min & ~0x03 : intervalSetHeader->start;
+	intervalSetHeader->end = max > intervalSetHeader->end ? max & ~0x03 : intervalSetHeader->end;
+}
+
 typedef struct
 {
 	unsigned int maxTransformCount;
 	unsigned int currentTransformCount;
-	unsigned int dirtyStreamStart;
-	unsigned int dirtyStreamEnd;
 } cranh_header_t;
-
-#define cranh_start_dirty_flag 0x02
-#define cranh_start_bit_mask 0xAAAAAAAA
-#define cranh_end_dirty_flag 0x01
-#define cranh_end_bit_mask 0x55555555
 
 // Buffer format:
 // header
 // local transforms [maxTransformCount]
 // global transforms [maxTransformCount]
 // max child index [maxTransformCount]
-// dirty ranges [maxTransformCount / 4 + 1]
+// dirty scheme
 
 unsigned int cranh_buffer_size(unsigned int maxTransformCount)
 {
@@ -90,7 +118,7 @@ unsigned int cranh_buffer_size(unsigned int maxTransformCount)
 		sizeof(cranm_transform_t) +
 		sizeof(cranh_handle_t) + 
 		sizeof(unsigned int)) * maxTransformCount + 
-		sizeof(uint32_t) * (maxTransformCount / 16 + 1);
+		cranh_dirty_scheme_size(maxTransformCount);
 }
 
 cranh_hierarchy_t* cranh_create(unsigned int maxTransformCount)
@@ -152,14 +180,14 @@ unsigned int* cranh_get_max_child_index(cranh_hierarchy_t* hierarchy, unsigned i
 	return (unsigned int*)bufferStart + index;
 }
 
-// Dirty stream is the fifth buffer
-uint32_t* cranh_get_dirty_stream(cranh_hierarchy_t* hierarchy, unsigned int index)
+// Dirty scheme is the fifth buffer
+cranh_dirty_scheme_header_t* cranh_get_dirty_scheme(cranh_hierarchy_t* hierarchy)
 {
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
 
 	uint8_t* bufferStart = (uint8_t*)hierarchy;
 	bufferStart += sizeof(cranh_header_t) + (sizeof(cranm_transform_t) * 2 + sizeof(cranh_handle_t) + sizeof(unsigned int)) * header->maxTransformCount;
-	return (uint32_t*)bufferStart + index;
+	return (cranh_dirty_scheme_header_t*)bufferStart;
 }
 
 cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value)
@@ -174,7 +202,7 @@ cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value)
 	cranm_transform_t* global = cranh_get_global(hierarchy, header->currentTransformCount);
 	cranh_handle_t* parent = cranh_get_parent(hierarchy, header->currentTransformCount);
 
-	parent->value = ~0;
+	parent->value = cranh_invalid_parent;
 	*global = value;
 	*local = value;
 
@@ -185,7 +213,7 @@ cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value)
 	return (cranh_handle_t){ .value = header->currentTransformCount++ };
 }
 
-cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transform_t value, cranh_handle_t handle)
+cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transform_t value, cranh_handle_t parentHandle)
 {
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
 
@@ -198,22 +226,29 @@ cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transfo
 	cranm_transform_t* global = cranh_get_global(hierarchy, header->currentTransformCount);
 	cranh_handle_t* parent = cranh_get_parent(hierarchy, header->currentTransformCount);
 
-	*parent = handle;
-	*global = cranm_transform(value, *cranh_get_global(hierarchy, handle.value));
+	*parent = parentHandle;
+	*global = cranm_transform(value, *cranh_get_global(hierarchy, parentHandle.value));
 	*local = value;
 
 	unsigned int* currentChildrenRange = cranh_get_max_child_index(hierarchy, header->currentTransformCount);
 	*currentChildrenRange = header->currentTransformCount;
 
-	unsigned int* parentChildrenRange = cranh_get_max_child_index(hierarchy, handle.value);
 
-	// Our parent range should technically always be growing, never shrinking when adding a child
+	// Update all of the parents
+	while (parentHandle.value != cranh_invalid_parent)
+	{
+		unsigned int* parentChildrenRange = cranh_get_max_child_index(hierarchy, parentHandle.value);
+
+		// Our parent range should technically always be growing, never shrinking when adding a child
 #ifdef CRANBERRY_DEBUG
-	assert(*parentChildrenRange < header->currentTransformCount);
+		assert(*parentChildrenRange < header->currentTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	// Our parent's range is now from our parent to us.
-	*parentChildrenRange = header->currentTransformCount;
+		// Our parent's range is now from our parent to us.
+		*parentChildrenRange = header->currentTransformCount;
+
+		parentHandle = *cranh_get_parent(hierarchy, parentHandle.value);
+	}
 
 	return (cranh_handle_t){ .value = header->currentTransformCount++ };
 }
@@ -230,23 +265,16 @@ cranm_transform_t cranh_read_local(cranh_hierarchy_t* hierarchy, cranh_handle_t 
 
 void cranh_write_local(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cranm_transform_t write)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
-
 #ifdef CRANBERRY_DEBUG
+	cranh_header_t* header = (cranh_header_t*)hierarchy;
 	assert(handle.value < header->currentTransformCount);
 #endif // CRANBERRY_DEBUG
 
 	*cranh_get_local(hierarchy, handle.value) = write;
 
-	uint32_t* rangeToggleStart = cranh_get_dirty_stream(hierarchy, handle.value / 16);
-	*rangeToggleStart = *rangeToggleStart | (cranh_start_dirty_flag << (handle.value % 16 * 2));
-
+	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy);
 	unsigned int maxChildIndex = *cranh_get_max_child_index(hierarchy, handle.value);
-	uint32_t* rangeToggleEnd = cranh_get_dirty_stream(hierarchy, maxChildIndex / 16);
-	*rangeToggleEnd = *rangeToggleEnd | (cranh_end_dirty_flag << (maxChildIndex % 16 * 2));
-
-	header->dirtyStreamStart = handle.value < header->dirtyStreamStart ? handle.value : header->dirtyStreamStart;
-	header->dirtyStreamEnd = maxChildIndex > header->dirtyStreamEnd ? maxChildIndex : header->dirtyStreamEnd;
+	cranh_dirty_add_interval(dirtyScheme, handle.value, maxChildIndex);
 }
 
 cranm_transform_t cranh_read_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform)
@@ -261,14 +289,13 @@ cranm_transform_t cranh_read_global(cranh_hierarchy_t* hierarchy, cranh_handle_t
 
 void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cranm_transform_t write)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
-
 #ifdef CRANBERRY_DEBUG
+	cranh_header_t* header = (cranh_header_t*)hierarchy;
 	assert(handle.value < header->currentTransformCount);
 #endif // CRANBERRY_DEBUG
 
 	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, handle.value);
-	if (parentHandle.value != ~0)
+	if (parentHandle.value != cranh_invalid_parent)
 	{
 		*cranh_get_local(hierarchy, handle.value) = cranm_inverse_transform(write, *cranh_get_global(hierarchy, parentHandle.value));
 	}
@@ -277,61 +304,41 @@ void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cra
 		*cranh_get_local(hierarchy, handle.value) = write;
 	}
 
-	uint32_t* rangeToggleStart = cranh_get_dirty_stream(hierarchy, handle.value / 16);
-	*rangeToggleStart = *rangeToggleStart | (cranh_start_dirty_flag << (handle.value % 16 * 2));
-
+	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy);
 	unsigned int maxChildIndex = *cranh_get_max_child_index(hierarchy, handle.value);
-	uint32_t* rangeToggleEnd = cranh_get_dirty_stream(hierarchy, maxChildIndex / 16);
-	*rangeToggleEnd = *rangeToggleEnd | (cranh_end_dirty_flag << (maxChildIndex % 16 * 2));
-
-	header->dirtyStreamStart = handle.value < header->dirtyStreamStart ? handle.value : header->dirtyStreamStart;
-	header->dirtyStreamEnd = maxChildIndex > header->dirtyStreamEnd ? maxChildIndex : header->dirtyStreamEnd;
+	cranh_dirty_add_interval(dirtyScheme, handle.value, maxChildIndex);
 }
 
-uint32_t cranh_bit_count(uint32_t i)
+uint8_t cranh_bit_count(uint8_t i)
 {
-	i = ((i >> 1) & 0x55555555) + (i & 0x55555555);
-	i = ((i >> 2) & 0x33333333) + (i & 0x33333333);
-	i = ((i >> 4) & 0x0F0F0F0F) + (i & 0x0F0F0F0F);
-	i = ((i >> 8) & 0x00FF00FF) + (i & 0x00FF00FF);
-	i = (i >> 16) + (i & 0x0000FFFF);
+	i = ((i >> 1) & 0x55) + (i & 0x55);
+	i = ((i >> 2) & 0x33) + (i & 0x33);
+	i = ((i >> 4) & 0x0F) + (i & 0x0F);
 	return i;
 }
 
 void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy);
+	uint8_t* intervalIter = (uint8_t*)(dirtyScheme + 1) + (dirtyScheme->start >> 4);
 
-	unsigned int start = header->dirtyStreamStart & ~15;
-	unsigned int end = header->dirtyStreamEnd & ~15;
+	cranm_transform_t* localIter = cranh_get_local(hierarchy, dirtyScheme->start);
+	cranm_transform_t* globalIter = cranh_get_global(hierarchy, dirtyScheme->start);
+	cranh_handle_t* parentIter = cranh_get_parent(hierarchy, dirtyScheme->start);
 
-	cranm_transform_t* localIter = cranh_get_local(hierarchy, start);
-	cranm_transform_t* globalIter = cranh_get_global(hierarchy, start);
-	cranh_handle_t* parentIter = cranh_get_parent(hierarchy, start);
-	uint32_t* dirtyStream = cranh_get_dirty_stream(hierarchy, start / 16);
-
-#ifdef CRANBERRY_DEBUG
-	unsigned int totalIndex = 0;
-#endif // CRANBERRY_DEBUG
-
-	// Stack start and ends
-	unsigned int dirtyStreamStack = 0;
-	for (unsigned int i = start; i < end + 1; i+=16, ++dirtyStream)
+	unsigned int dirtyStack = 0;
+	for (unsigned int in = dirtyScheme->start; in < dirtyScheme->end + 1; in += 4, ++intervalIter)
 	{
-		dirtyStreamStack += cranh_bit_count(*dirtyStream & cranh_start_bit_mask);
+		dirtyStack += cranh_bit_count(*intervalIter & cranh_dirty_start_bit_mask);
 
-		if (dirtyStreamStack > 0)
+		if (dirtyStack > 0)
 		{
-			for (unsigned int d = 0; d < 16; d++, ++localIter, ++globalIter, ++parentIter)
+			for (unsigned int i = 0; i < 4; ++i, ++localIter, ++globalIter, ++parentIter)
 			{
-#ifdef CRANBERRY_DEBUG
-				++totalIndex;
-#endif // CRANBERRY_DEBUG
-
-				if (parentIter->value != ~0)
+				if (parentIter->value != cranh_invalid_parent)
 				{
 #ifdef CRANBERRY_DEBUG
-					assert(parentIter->value < totalIndex);
+					assert(parentIter->value < in + i);
 #endif // CRANBERRY_DEBUG
 
 					cranm_transform_t* parent = cranh_get_global(hierarchy, parentIter->value);
@@ -343,17 +350,19 @@ void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
 				}
 			}
 		}
+		else
+		{
+			localIter += 4;
+			globalIter += 4;
+			parentIter += 4;
+		}
 
-		dirtyStreamStack -= cranh_bit_count(*dirtyStream & cranh_end_bit_mask);
-		*dirtyStream = 0;
+		dirtyStack -= cranh_bit_count(*intervalIter & cranh_dirty_end_bit_mask);
+		*intervalIter = 0;
 	}
 
-	header->dirtyStreamStart = 0;
-	header->dirtyStreamEnd = 0;
-
-#ifdef CRANBERRY_DEBUG
-	assert(dirtyStreamStack == 0);
-#endif // CRANBERRY_DEBUG
+	dirtyScheme->start = 0;
+	dirtyScheme->end = 0;
 }
 
 
