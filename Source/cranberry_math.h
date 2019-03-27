@@ -8,6 +8,12 @@
 #include <emmintrin.h>
 
 #define cranm_shuffle_sse(a, b) _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(a), b))
+typedef union
+{
+	float f[4];
+	__m128 sse;
+} cranm_sse_union;
+#define cranm_extract_sse(a, b) ((cranm_sse_union*)&a)->f[b]
 #endif // CRANBERRY_MATH_SSE
 
 #ifdef CRANBERRY_DEBUG

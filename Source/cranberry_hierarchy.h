@@ -327,34 +327,29 @@ void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
 	cranh_handle_t* parentIter = cranh_get_parent(hierarchy, dirtyScheme->start);
 
 	unsigned int dirtyStack = 0;
-	for (unsigned int in = dirtyScheme->start; in < dirtyScheme->end + 1; in += 4, ++intervalIter)
+	for (unsigned int in = dirtyScheme->start; in < dirtyScheme->end + 1; 
+		in += 4, ++intervalIter, localIter += 4, globalIter += 4, parentIter += 4)
 	{
 		dirtyStack += cranh_bit_count(*intervalIter & cranh_dirty_start_bit_mask);
 
 		if (dirtyStack > 0)
 		{
-			for (unsigned int i = 0; i < 4; ++i, ++localIter, ++globalIter, ++parentIter)
+			for (unsigned int i = 0; i < 4; ++i)
 			{
-				if (parentIter->value != cranh_invalid_parent)
+				if ((parentIter + i)->value != cranh_invalid_parent)
 				{
 #ifdef CRANBERRY_DEBUG
-					assert(parentIter->value < in + i);
+					assert((parentIter + i)->value < in + i);
 #endif // CRANBERRY_DEBUG
 
-					cranm_transform_t* parent = cranh_get_global(hierarchy, parentIter->value);
-					*globalIter = cranm_transform(*localIter, *parent);
+					cranm_transform_t* parent = cranh_get_global(hierarchy, (parentIter + i)->value);
+					*(globalIter + i) = cranm_transform(*(localIter + i), *parent);
 				}
 				else
 				{
-					*globalIter = *localIter;
+					*(globalIter + i) = *(localIter + i);
 				}
 			}
-		}
-		else
-		{
-			localIter += 4;
-			globalIter += 4;
-			parentIter += 4;
 		}
 
 		dirtyStack -= cranh_bit_count(*intervalIter & cranh_dirty_end_bit_mask);
