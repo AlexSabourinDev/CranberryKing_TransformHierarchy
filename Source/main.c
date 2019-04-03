@@ -34,7 +34,7 @@ void test()
 	cranm_transform_t t = { .pos = {.x = 30.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {5.0f, 5.0f, 5.0f} };
 	assert(memcmp(&rt, &t, sizeof(cranm_transform_t)) == 0);
 
-	cranh_hierarchy_t* hierarchy = cranh_create(2);
+	cranh_hierarchy_t* hierarchy = cranh_create(5);
 	cranh_handle_t parent = cranh_add(hierarchy, p);
 	cranh_handle_t child = cranh_add_with_parent(hierarchy, c, parent);
 
@@ -60,7 +60,7 @@ static uint64_t time_LastFrame = 0;
 const uint8_t render_SampleCount = 4;
 static sg_draw_state render_DrawState;
 
-#define render_MaxInstanceCount 1000000
+#define render_MaxInstanceCount 5000000
 game_instance_t render_InstanceBuffer[render_MaxInstanceCount];
 
 typedef struct
@@ -134,6 +134,7 @@ void core_init(void)
 		.index_type = SG_INDEXTYPE_UINT16,
 		.depth_stencil =
 		{
+			.depth_compare_func = SG_COMPAREFUNC_LESS,
 			.depth_write_enabled = true
 		},
 

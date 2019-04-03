@@ -24,7 +24,7 @@ typedef union
 
 typedef struct
 {
-	float x, y, z;
+	float x, y, z, w;
 } cranm_vec3_t;
 
 typedef struct
@@ -283,8 +283,8 @@ static cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t 
 	return (cranm_transform_t)
 	{
 		.rot = cranm_mulq(t.rot, by.rot),
-		.scale = cranm_scale3(t.scale, by.scale),
-		.pos = cranm_add3(cranm_rot3(cranm_scale3(t.pos, by.scale), by.rot), by.pos)
+		.pos = cranm_add3(cranm_rot3(cranm_scale3(t.pos, by.scale), by.rot), by.pos),
+		.scale = cranm_scale3(t.scale, by.scale)
 	};
 }
 
@@ -295,8 +295,8 @@ static cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_tran
 	return (cranm_transform_t)
 	{
 		.rot = cranm_inverse_mulq(t.rot, by.rot),
-		.scale = cranm_scale3(t.scale, inverseScale),
-		.pos = cranm_scale3(cranm_inverse_rot3(cranm_sub3(t.pos, by.pos), by.rot), inverseScale)
+		.pos = cranm_scale3(cranm_inverse_rot3(cranm_sub3(t.pos, by.pos), by.rot), inverseScale),
+		.scale = cranm_scale3(t.scale, inverseScale)
 	};
 }
 

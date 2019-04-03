@@ -3,6 +3,20 @@
 
 #include "cranberry_math.h"
 
+//
+// cranberry_hierarchy.h
+// @brief Cranberry hierarchy is a simple transform hierarchy focused on efficiency and simplicity.
+// WARNING: This hierarchy expects that the transforms read from cranh_read_local and cranh_read_global are from
+// the previous step and only advanced once cranh_transform_locals_to_globals is called.
+// This decision was made to allow for easier debugging and reasoning. Instead of trying to reason about the order of transform modifications,
+// you work with a fixed snapshot every frame.
+// Say, you were put in a position where various logic components reads and writes their transform in an arbitrary order, then it might be unclear
+// if you're running before your parent's position has been updated or not. If the child is run before the parent, the position used for it's logic
+// will be different than if the parent's position had been updated. As a result, defining a fixed point where all transforms are updated allows the
+// user to reason about the functionality a lot more easily. It also takes the time spent updating transforms out of the logic code and providing 
+// a more consistent profiling report.
+//
+
 // #define CRANBERRY_HIERARCHY_IMPL to enable the implementation in a translation unit
 // #define CRANBERRY_DEBUG to enable debug checks
 
@@ -29,12 +43,10 @@ unsigned int cranh_buffer_size(unsigned int maxTransformCount);
 // @param buffer An externally allocated chunk of memory of a minimum size of at least @ref cranh_buffer_size.
 cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int maxTransformCount);
 
-// @brief Add a transform to the hierarchy without a parent.
+
 cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value);
-// @brief Add a transform to the hierarchy with a specified parent.
 cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transform_t value, cranh_handle_t parent);
 
-// @brief Transforms all locals to globals
 void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy);
 
 // @brief Reads the local transform addressed by handle
@@ -67,7 +79,7 @@ void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform, 
 #define cranh_dirty_start_bit_mask 0xAA
 #define cranh_dirty_end_flag 0x01
 #define cranh_dirty_end_bit_mask 0x55
-#define cranh_invalid_parent ~0
+#define cranh_invalid_handle ~0
 
 typedef struct
 {
@@ -193,74 +205,77 @@ cranh_dirty_scheme_header_t* cranh_get_dirty_scheme(cranh_hierarchy_t* hierarchy
 cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value)
 {
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	unsigned int transformHandle = header->currentTransformCount;
+	++header->currentTransformCount;
 
 #ifdef CRANBERRY_DEBUG
-	assert(header->currentTransformCount < header->maxTransformCount);
+	assert(transformHandle < header->maxTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	cranm_transform_t* local = cranh_get_local(hierarchy, header->currentTransformCount);
-	cranm_transform_t* global = cranh_get_global(hierarchy, header->currentTransformCount);
-	cranh_handle_t* parent = cranh_get_parent(hierarchy, header->currentTransformCount);
+	cranm_transform_t* local = cranh_get_local(hierarchy, transformHandle);
+	cranm_transform_t* global = cranh_get_global(hierarchy, transformHandle);
+	cranh_handle_t* parent = cranh_get_parent(hierarchy, transformHandle);
 
-	parent->value = cranh_invalid_parent;
+	parent->value = cranh_invalid_handle;
 	*global = value;
 	*local = value;
 
 	// dirty setup
-	unsigned int* currentChildrenRange = cranh_get_max_child_index(hierarchy, header->currentTransformCount);
-	*currentChildrenRange = header->currentTransformCount;
+	unsigned int* currentChildrenRange = cranh_get_max_child_index(hierarchy, transformHandle);
+	*currentChildrenRange = transformHandle;
 
-	return (cranh_handle_t){ .value = header->currentTransformCount++ };
+	return (cranh_handle_t){ .value = transformHandle };
 }
 
 cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transform_t value, cranh_handle_t parentHandle)
 {
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	unsigned int transformHandle = header->currentTransformCount;
+	++header->currentTransformCount;
 
 #ifdef CRANBERRY_DEBUG
-	assert(header->currentTransformCount < header->maxTransformCount);
-	assert(handle.value < header->currentTransformCount);
+	assert(transformHandle < header->maxTransformCount);
+	assert(parentHandle.value < transformHandle);
 #endif // CRANBERRY_DEBUG
 
-	cranm_transform_t* local = cranh_get_local(hierarchy, header->currentTransformCount);
-	cranm_transform_t* global = cranh_get_global(hierarchy, header->currentTransformCount);
-	cranh_handle_t* parent = cranh_get_parent(hierarchy, header->currentTransformCount);
+	cranm_transform_t* local = cranh_get_local(hierarchy, transformHandle);
+	cranm_transform_t* global = cranh_get_global(hierarchy, transformHandle);
+	cranh_handle_t* parent = cranh_get_parent(hierarchy, transformHandle);
 
 	*parent = parentHandle;
 	*global = cranm_transform(value, *cranh_get_global(hierarchy, parentHandle.value));
 	*local = value;
 
-	unsigned int* currentChildrenRange = cranh_get_max_child_index(hierarchy, header->currentTransformCount);
-	*currentChildrenRange = header->currentTransformCount;
-
+	unsigned int* currentChildrenRange = cranh_get_max_child_index(hierarchy, transformHandle);
+	*currentChildrenRange = transformHandle;
 
 	// Update all of the parents
-	while (parentHandle.value != cranh_invalid_parent)
+	while (parentHandle.value != cranh_invalid_handle)
 	{
 		unsigned int* parentChildrenRange = cranh_get_max_child_index(hierarchy, parentHandle.value);
-
-		// Our parent range should technically always be growing, never shrinking when adding a child
-#ifdef CRANBERRY_DEBUG
-		assert(*parentChildrenRange < header->currentTransformCount);
-#endif // CRANBERRY_DEBUG
-
-		// Our parent's range is now from our parent to us.
-		*parentChildrenRange = header->currentTransformCount;
-
+		*parentChildrenRange = *parentChildrenRange < transformHandle ? transformHandle : *parentChildrenRange;
 		parentHandle = *cranh_get_parent(hierarchy, parentHandle.value);
 	}
 
-	return (cranh_handle_t){ .value = header->currentTransformCount++ };
+	return (cranh_handle_t){ .value = transformHandle };
 }
 
-cranm_transform_t cranh_read_local(cranh_hierarchy_t* hierarchy, cranh_handle_t transform)
+cranm_transform_t cranh_read_local(cranh_hierarchy_t* hierarchy, cranh_handle_t handle)
 {
 #ifdef CRANBERRY_DEBUG
 	cranh_header_t* header = (cranh_header_t*)hierarchy;
-	assert(transform.value < header->currentTransformCount);
+	assert(handle.value < header->currentTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	return *cranh_get_local(hierarchy, transform.value);
+	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, handle.value);
+	if (parentHandle.value != cranh_invalid_handle)
+	{
+		return cranm_inverse_transform(*cranh_get_global(hierarchy, handle.value), *cranh_get_global(hierarchy, parentHandle.value));
+	}
+	else
+	{
+		return *cranh_get_global(hierarchy, handle.value);
+	}
 }
 
 void cranh_write_local(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cranm_transform_t write)
@@ -295,7 +310,7 @@ void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cra
 #endif // CRANBERRY_DEBUG
 
 	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, handle.value);
-	if (parentHandle.value != cranh_invalid_parent)
+	if (parentHandle.value != cranh_invalid_handle)
 	{
 		*cranh_get_local(hierarchy, handle.value) = cranm_inverse_transform(write, *cranh_get_global(hierarchy, parentHandle.value));
 	}
@@ -336,7 +351,7 @@ void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
 		{
 			for (unsigned int i = 0; i < 4; ++i)
 			{
-				if ((parentIter + i)->value != cranh_invalid_parent)
+				if ((parentIter + i)->value != cranh_invalid_handle)
 				{
 #ifdef CRANBERRY_DEBUG
 					assert((parentIter + i)->value < in + i);
@@ -364,3 +379,11 @@ void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
 #endif // CRANBERRY_HIERARCHY_IMPL
 
 #endif // __CRANBERRY_HIERARCHY_H
+
+// Thoughts:
+// Reparenting a child is currently disallowed. The reason for this is because reparenting adds quite a bit of complexity/performance cost to the
+// system. A few options I had considered were keeping the tree in a depth first flattened hierarchy but this immediatly invalidates children indices
+// as a result, the fix for that could be to have an additional level of indirection, an array of handles to indices. However, this introduces a data
+// dependency to read a transform, you now have to wait for the memory of index array and then the memory for the transform. One option
+// could be to allow transforms to be read through raw indices and only ask for conversion when the indices are dirtied. But the complexity of
+// maintaining this flat hierarchy, could be quite large. Adding a transform after creating becomes costly, especially with larger buffers.

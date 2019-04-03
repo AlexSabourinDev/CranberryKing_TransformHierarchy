@@ -1,4 +1,6 @@
 ﻿  game.c
+c:\users\alexandre\desktop\development\cranberryking\cranberryking_transformhierarchy\source\game.c(86): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\alexandre\desktop\development\cranberryking\cranberryking_transformhierarchy\source\game.c(108): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
   main.c
   Generating Code...
   TransformHierarchy.vcxproj -> C:\Users\Alexandre\Desktop\Development\CranberryKing\CranberryKing_TransformHierarchy\Project\TransformHierarchy\x64\Debug\TransformHierarchy.exe

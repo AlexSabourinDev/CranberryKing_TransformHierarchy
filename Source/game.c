@@ -15,11 +15,11 @@ static float randf(float min, float max)
 }
 
 #define PI 3.14159f
-#define max_entity_count 1000000
+#define max_entity_count 5000000
 cranh_hierarchy_t* transform_hierarchy;
 
 const float phys_gravity_a = -9.807f;
-const float phys_floor_y = -10.0f;
+const float phys_floor_y = -5.0f;
 
 const float phys_fixed_tick = 0.016f;
 static float phys_tick_accumulator = 0.0f;
@@ -78,12 +78,13 @@ void game_init(void)
 {
 	transform_hierarchy = cranh_create(max_entity_count);
 
-	for (uint32_t i = 0; i < 50000; i++)
+	for (int i = 0; i < 5; i++)
 	{
+		cranm_vec3_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f) };
 		cranm_transform_t t =
 		{
-			.pos = {randf(-25.0f, 25.0f), randf(0.0f, 15.0f), randf(25.0f, 75.0f)},
-			.rot = cranm_axis_angleq((cranm_vec3_t) { .x = 0.0f,.y = 0.0f,.z = 1.0f }, 0.0f),
+			.pos = { (i - 2) * 5, randf(0.0f, 5.0f), randf(15.0f, 25.0f)},
+			.rot = cranm_axis_angleq(cranm_normalize3(randV), randf(0.0f, 2.0f * PI)),
 			.scale = {0.3f, 0.3f, 0.3f}
 		};
 
@@ -92,23 +93,28 @@ void game_init(void)
 		phys_vel_x[phys_entity_count] = 0.0f;
 		phys_vel_y[phys_entity_count] = 0.0f;
 		phys_vel_z[phys_entity_count] = 0.0f;
-		phys_bounce[phys_entity_count] = randf(0.75f, 0.99f);
+		phys_bounce[phys_entity_count] = 0.99f;
 		phys_entity_count++;
 
-		render_handles[render_count] = h;
-		render_count++;
-
+		for(int cx = -30; cx < 30; ++cx)
 		{
-			cranm_transform_t c =
+			for (int cy = -30; cy < 30; ++cy)
 			{
-				.pos = {3.0f, 5.0f, 0.0f},
-				.rot = cranm_axis_angleq((cranm_vec3_t) { .x = 0.0f,.y = 0.0f,.z = 1.0f }, 0.0f),
-				.scale = {0.5f, 0.5f, 0.5f}
-			};
+				for (int cz = -30; cz < 30; ++cz)
+				{
+					cranm_vec3_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f) };
+					cranm_transform_t c =
+					{
+						.pos = {cx * 0.75f, cy * 0.75f, cz * 0.75f},
+						.rot = cranm_axis_angleq(cranm_normalize3(randV), randf(0.0f, 2.0f * PI)),
+						.scale = {0.1f, 0.1f, 0.1f}
+					};
 
-			cranh_handle_t ch = cranh_add_with_parent(transform_hierarchy, c, h);
-			render_handles[render_count] = ch;
-			render_count++;
+					cranh_handle_t ch = cranh_add_with_parent(transform_hierarchy, c, h);
+					render_handles[render_count] = ch;
+					render_count++;
+				}
+			}
 		}
 	}
 }
