@@ -24,7 +24,7 @@ typedef union
 
 typedef struct
 {
-	float x, y, z, w;
+	float x, y, z;
 } cranm_vec3_t;
 
 typedef struct
