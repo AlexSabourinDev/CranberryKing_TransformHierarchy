@@ -52,7 +52,7 @@ void phys_tick(float delta)
 
 			// Apply velocity
 			{
-				cranm_vec3_t dv = cranm_scale((cranm_vec3_t) { .x = phys_vel_x[i], .y = phys_vel_y[i], .z = phys_vel_z[i] }, phys_fixed_tick);
+				cranm_vec_t dv = cranm_scale((cranm_vec_t) { .x = phys_vel_x[i], .y = phys_vel_y[i], .z = phys_vel_z[i] }, phys_fixed_tick);
 				global_transform.pos = cranm_add3(global_transform.pos, dv);
 			}
 
@@ -64,7 +64,7 @@ void phys_tick(float delta)
 					phys_vel_y[i] = -phys_vel_y[i] * phys_bounce[i];
 					global_transform.pos.y = phys_floor_y;
 
-					cranm_vec3_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f) };
+					cranm_vec_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f) };
 					global_transform.rot = cranm_axis_angleq(cranm_normalize3(randV), randf(0.0f, 2.0f * PI));
 				}
 			}
@@ -80,12 +80,12 @@ void game_init(void)
 
 	for (int i = 0; i < 5; i++)
 	{
-		cranm_vec3_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f) };
+		cranm_vec_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f), 0.0f };
 		cranm_transform_t t =
 		{
-			.pos = { (i - 2) * 5, randf(0.0f, 5.0f), randf(15.0f, 25.0f)},
+			.pos = { (i - 2) * 5, randf(0.0f, 5.0f), randf(15.0f, 25.0f), 0.0f},
 			.rot = cranm_axis_angleq(cranm_normalize3(randV), randf(0.0f, 2.0f * PI)),
-			.scale = {0.3f, 0.3f, 0.3f}
+			.scale = {0.3f, 0.3f, 0.3f, 0.0f}
 		};
 
 		cranh_handle_t h = cranh_add(transform_hierarchy, t);
@@ -102,12 +102,12 @@ void game_init(void)
 			{
 				for (int cz = -30; cz < 30; ++cz)
 				{
-					cranm_vec3_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f) };
+					cranm_vec_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f), 0.0f };
 					cranm_transform_t c =
 					{
-						.pos = {cx * 0.75f, cy * 0.75f, cz * 0.75f},
+						.pos = {cx * 0.75f, cy * 0.75f, cz * 0.75f, 0.0f},
 						.rot = cranm_axis_angleq(cranm_normalize3(randV), randf(0.0f, 2.0f * PI)),
-						.scale = {0.1f, 0.1f, 0.1f}
+						.scale = {0.1f, 0.1f, 0.1f, 0.0f}
 					};
 
 					cranh_handle_t ch = cranh_add_with_parent(transform_hierarchy, c, h);

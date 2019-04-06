@@ -40,8 +40,11 @@ void cranh_destroy(cranh_hierarchy_t* hierarchy);
 // Use this function in correspondance with @ref cranh_buffer_create to turn the buffer into a usable chunk of memory.
 unsigned int cranh_buffer_size(unsigned int maxTransformCount);
 // @brief Takes a buffer as input and initializes the memory into a workable chunk of memory for the remaining API calls.
+// WARNING: cranh_hierarchy_t doesn't have to point to buffer! Call retrieve buffer to get the original pointer.
 // @param buffer An externally allocated chunk of memory of a minimum size of at least @ref cranh_buffer_size.
 cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int maxTransformCount);
+
+void* cranh_retrieve_buffer(cranh_hierarchy_t* hierarchy);
 
 
 cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value);
@@ -80,6 +83,7 @@ void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform, 
 #define cranh_dirty_end_flag 0x01
 #define cranh_dirty_end_bit_mask 0x55
 #define cranh_invalid_handle ~0
+#define cranh_buffer_alignment 64
 
 typedef struct
 {
@@ -173,7 +177,14 @@ unsigned int cranh_buffer_size(unsigned int maxTransformCount)
 		sizeof(cranm_transform_t) +
 		sizeof(cranh_handle_t) + 
 		sizeof(cranh_range_t)) * maxTransformCount +
-		cranh_dirty_scheme_size(maxTransformCount);
+		cranh_dirty_scheme_size(maxTransformCount) + cranh_buffer_alignment; // Add 64 bytes, we might need that for alignment
+}
+
+void* cranh_retrieve_buffer(cranh_hierarchy_t* hierarchy)
+{
+	uint8_t offset = *((uint8_t*)hierarchy - 1);
+	void* buffer = (void*)((intptr_t)hierarchy - offset);
+	return buffer;
 }
 
 cranh_hierarchy_t* cranh_create(unsigned int maxTransformCount)
@@ -185,14 +196,28 @@ cranh_hierarchy_t* cranh_create(unsigned int maxTransformCount)
 
 void cranh_destroy(cranh_hierarchy_t* hierarchy)
 {
-	free(hierarchy);
+	void* buffer = cranh_retrieve_buffer(hierarchy);
+	free(buffer);
 }
 
 cranh_dirty_scheme_header_t* cranh_get_dirty_scheme(cranh_hierarchy_t* hierarchy);
 cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int maxSize)
 {
+	// Zero out our buffer before we work with it
+	memset(buffer, 0, cranh_buffer_size(maxSize));
+
+	// We add the size of the header because we don't want to align the header.
+	// we want to align the local buffer and global buffer
+	intptr_t bufferAddress = (intptr_t)buffer;
+	intptr_t offset = cranh_buffer_alignment - (bufferAddress + sizeof(cranh_header_t)) % cranh_buffer_alignment;
+	buffer = (void*)(bufferAddress + offset);
+#ifdef CRANBERRY_DEBUG
+	assert(offset <= UINT8_MAX);
+	assert(((intptr_t)buffer + sizeof(cranh_header_t)) % cranh_buffer_alignment == 0);
+#endif // CRANBERRY_DEBUG
+	*((uint8_t*)buffer - 1) = (uint8_t)offset;
+
 	cranh_header_t* hierarchyHeader = (cranh_header_t*)buffer;
-	memset(hierarchyHeader, 0, cranh_buffer_size(maxSize));
 	hierarchyHeader->maxTransformCount = maxSize;
 	hierarchyHeader->currentChildTransformCount = 0;
 	hierarchyHeader->currentRootTransformCount = 0;
