@@ -78,7 +78,7 @@ void game_init(void)
 {
 	transform_hierarchy = cranh_create(max_entity_count);
 
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		cranm_vec_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f), 0.0f };
 		cranm_transform_t t =
@@ -89,12 +89,6 @@ void game_init(void)
 		};
 
 		cranh_handle_t h = cranh_add(transform_hierarchy, t);
-		phys_handle[phys_entity_count] = h;
-		phys_vel_x[phys_entity_count] = 0.0f;
-		phys_vel_y[phys_entity_count] = 0.0f;
-		phys_vel_z[phys_entity_count] = 0.0f;
-		phys_bounce[phys_entity_count] = 0.99f;
-		phys_entity_count++;
 
 		for(int cx = -30; cx < 30; ++cx)
 		{
@@ -113,6 +107,13 @@ void game_init(void)
 					cranh_handle_t ch = cranh_add_with_parent(transform_hierarchy, c, h);
 					render_handles[render_count] = ch;
 					render_count++;
+
+					phys_handle[phys_entity_count] = ch;
+					phys_vel_x[phys_entity_count] = 0.0f;
+					phys_vel_y[phys_entity_count] = 0.0f;
+					phys_vel_z[phys_entity_count] = 0.0f;
+					phys_bounce[phys_entity_count] = 0.99f;
+					phys_entity_count++;
 				}
 			}
 		}
