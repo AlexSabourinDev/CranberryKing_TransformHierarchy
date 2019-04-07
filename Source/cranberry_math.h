@@ -47,6 +47,7 @@ static cranm_vec_t cranm_scale(cranm_vec_t l, float s);
 static cranm_vec_t cranm_scale3(cranm_vec_t l, cranm_vec_t r);
 static cranm_vec_t cranm_cross(cranm_vec_t l, cranm_vec_t r);
 static cranm_vec_t cranm_normalize3(cranm_vec_t v);
+static cranm_vec_t cranm_recriprocal3(cranm_vec_t v);
 
 static cranm_vec_t cranm_quat_t_xyz(cranm_quat_t q);
 static cranm_quat_t cranm_axis_angleq(cranm_vec_t axis, float angle);
@@ -81,7 +82,16 @@ static cranm_vec_t cranm_add3(cranm_vec_t l, cranm_vec_t r)
 
 static cranm_vec_t cranm_sub3(cranm_vec_t l, cranm_vec_t r)
 {
+#ifdef CRANBERRY_SSE
+	__m128 lv = _mm_load_ps((float*)&l);
+	__m128 rv = _mm_load_ps((float*)&r);
+
+	cranm_vec_t result;
+	_mm_store_ps((float*)&result, _mm_sub_ps(lv, rv));
+	return result;
+#else
 	return (cranm_vec_t) { .x = l.x - r.x, l.y - r.y, l.z - r.z };
+#endif // CRANBERRY_SSE
 }
 
 static cranm_vec_t cranm_scale(cranm_vec_t l, float s)
@@ -144,6 +154,19 @@ static cranm_vec_t cranm_normalize3(cranm_vec_t v)
 {
 	float rm = 1.0f / sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 	return (cranm_vec_t) { .x = v.x * rm, .y = v.y * rm, .z = v.z * rm };
+}
+
+static cranm_vec_t cranm_recriprocal3(cranm_vec_t v)
+{
+#ifdef CRANBERRY_SSE
+	__m128 lv = _mm_load_ps((float*)&v);
+
+	cranm_vec_t result;
+	_mm_store_ps((float*)&result, _mm_rcp_ps(lv));
+	return result;
+#else
+	return (cranm_vec_t) { .x = 1.0f / v.x, .y = 1.0f / v.y, .z = 1.0f / v.z };
+#endif // CRANBERRY_SSE
 }
 
 static cranm_vec_t cranm_quat_t_xyz(cranm_quat_t q)
@@ -330,7 +353,7 @@ static cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t 
 
 static cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by)
 {
-	cranm_vec_t inverseScale = { .x = 1.0f / by.scale.x, .y = 1.0f / by.scale.y, .z = 1.0f / by.scale.z };
+	cranm_vec_t inverseScale = cranm_recriprocal3(by.scale);
 
 	return (cranm_transform_t)
 	{
