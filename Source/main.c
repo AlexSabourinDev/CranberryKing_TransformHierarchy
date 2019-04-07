@@ -165,7 +165,7 @@ void core_frame(void)
 	int height = sapp_height();
 
 	uint64_t lap = stm_laptime(&time_LastFrame);
-	game_tick((float)stm_sec(lap));
+	game_tick(0.016f);
 
 	unsigned int instanceCount = game_gen_instance_buffer(render_InstanceBuffer, render_MaxInstanceCount);
 	sg_update_buffer(render_DrawState.vertex_buffers[0], render_InstanceBuffer, instanceCount * sizeof(game_instance_t));

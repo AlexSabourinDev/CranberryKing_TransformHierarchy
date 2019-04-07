@@ -32,6 +32,9 @@ clang-cl.exe : warning : argument unused during compilation: '-O3' [-Wunused-com
   static cranm_transform_t cranm_inverse_transform(cranm_transform_t* t, cranm_transform_t* by)
                            ^
   9 warnings generated.
+..\..\..\Source\main.c(167,11): warning : unused variable 'lap' [-Wunused-variable]
+          uint64_t lap = stm_laptime(&time_LastFrame);
+                   ^
   In file included from ..\..\..\Source\main.c:3:
   In file included from ..\..\..\Source/game.h:3:
 ..\..\..\Source/cranberry_math.h(171,20): warning : unused function 'cranm_normalize3' [-Wunused-function]
@@ -53,7 +56,7 @@ clang-cl.exe : warning : argument unused during compilation: '-O3' [-Wunused-com
 ..\..\..\Source/3rd/sokol_app.h(793,29): warning : unused function '_sapp_translate_key' [-Wunused-function]
   _SOKOL_PRIVATE sapp_keycode _sapp_translate_key(int scan_code) {
                               ^
-  6 warnings generated.
+  7 warnings generated.
   LINK : /LTCG specified but no code generation required; remove /LTCG from the link command line to improve linker performance
   TransformHierarchy.vcxproj -> C:\Users\Alexandre\Desktop\Development\CranberryKing\CranberryKing_TransformHierarchy\Project\TransformHierarchy\x64\Release\TransformHierarchy.exe
   TransformHierarchy.vcxproj -> C:\Users\Alexandre\Desktop\Development\CranberryKing\CranberryKing_TransformHierarchy\Project\TransformHierarchy\x64\Release\TransformHierarchy.pdb (Full PDB)
