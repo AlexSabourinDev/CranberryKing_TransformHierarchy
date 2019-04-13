@@ -197,7 +197,7 @@ static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
 	cranm_quat_t result;
 	_mm_store_ps((float*)&result, f);
 
-#ifdef CRANBERRY_DEBUG
+#ifdef CRANBERRY_MATH_DEBUG_SLOW
 	cranm_quat_t test = 
 	{
 		.x = l.w * r.x + l.x * r.w - l.y * r.z + l.z * r.y,
@@ -207,7 +207,7 @@ static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
 	};
 
 	assert(result.x == test.x && result.y == test.y && result.z == test.z && result.w == test.w);
-#endif // CRANBERRY_DEBUG
+#endif // CRANBERRY_MATH_DEBUG_SLOW
 
 	return result;
 #else
@@ -246,7 +246,7 @@ static cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r)
 	cranm_quat_t result;
 	_mm_store_ps((float*)&result, f);
 
-#ifdef CRANBERRY_DEBUG
+#ifdef CRANBERRY_MATH_DEBUG_SLOW
 	cranm_quat_t test =
 	{
 		.x = -l.w * r.x + l.x * r.w + l.y * r.z - l.z * r.y,
@@ -256,7 +256,7 @@ static cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r)
 	};
 
 	assert(result.x == test.x && result.y == test.y && result.z == test.z && result.w == test.w);
-#endif // CRANBERRY_DEBUG
+#endif // CRANBERRY_MATH_DEBUG_SLOW
 
 	return result;
 #else

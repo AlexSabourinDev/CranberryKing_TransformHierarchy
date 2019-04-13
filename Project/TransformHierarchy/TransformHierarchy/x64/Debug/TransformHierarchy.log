@@ -1,4 +1,5 @@
 ﻿  game.c
   main.c
-c:\users\alexandre\desktop\development\cranberryking\cranberryking_transformhierarchy\source\game.c(86): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\alexandre\desktop\development\cranberryking\cranberryking_transformhierarchy\source\game.c(58): warning C4311: 'type cast': pointer truncation from 'LPVOID' to 'unsigned int'
+c:\users\alexandre\desktop\development\cranberryking\cranberryking_transformhierarchy\source\game.c(180): warning C4312: 'type cast': conversion from 'unsigned int' to 'LPVOID' of greater size
   TransformHierarchy.vcxproj -> C:\Users\Alexandre\Desktop\Development\CranberryKing\CranberryKing_TransformHierarchy\Project\TransformHierarchy\x64\Debug\TransformHierarchy.exe

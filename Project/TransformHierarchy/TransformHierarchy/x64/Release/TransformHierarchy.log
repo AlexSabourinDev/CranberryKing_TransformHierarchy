@@ -2,6 +2,9 @@
 clang-cl.exe : warning : argument unused during compilation: '/GL' [-Wunused-command-line-argument]
 clang-cl.exe : warning : argument unused during compilation: '/Gm-' [-Wunused-command-line-argument]
 clang-cl.exe : warning : argument unused during compilation: '-O3' [-Wunused-command-line-argument]
+..\..\..\Source\game.c(180,4): warning : cast to 'LPVOID' (aka 'void *') from smaller integer type 'unsigned int' [-Wint-to-void-pointer-cast]
+                          (LPVOID)i,
+                          ^
   In file included from ..\..\..\Source\game.c:2:
   In file included from ..\..\..\Source/game.h:3:
 ..\..\..\Source/cranberry_math.h(280,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
@@ -22,7 +25,7 @@ clang-cl.exe : warning : argument unused during compilation: '-O3' [-Wunused-com
 ..\..\..\Source/cranberry_math.h(354,26): warning : unused function 'cranm_inverse_transform' [-Wunused-function]
   static cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by)
                            ^
-  6 warnings generated.
+  7 warnings generated.
   In file included from ..\..\..\Source\main.c:3:
   In file included from ..\..\..\Source/game.h:3:
 ..\..\..\Source/cranberry_math.h(153,20): warning : unused function 'cranm_normalize3' [-Wunused-function]

@@ -34,7 +34,7 @@ void test()
 	cranm_transform_t t = { .pos = {.x = 30.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {5.0f, 5.0f, 5.0f} };
 	assert(memcmp(&rt, &t, sizeof(cranm_transform_t)) == 0);
 
-	cranh_hierarchy_t* hierarchy = cranh_create(5);
+	cranh_hierarchy_t* hierarchy = cranh_create(2, 5);
 	cranh_handle_t parent = cranh_add(hierarchy, p);
 	cranh_handle_t child = cranh_add_with_parent(hierarchy, c, parent);
 

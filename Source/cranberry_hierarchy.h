@@ -27,30 +27,37 @@ typedef struct { unsigned int value; } cranh_handle_t;
 
 // API
 
+unsigned int cranh_group_from_handle(cranh_handle_t handle);
+
 // @brief Create a cranh_hierarchy_t.
-// @param maxTransformCount Determines the maximum number of transforms this hierarchy can support
+// @param groupBufferCount determines the number of transform "groups" the hierarchy supports. Groups are intended to be used as job-able
+//        chunks of data.
+// @param maxGroupTransformCount Determines the maximum number of transforms this hierarchy can support per group.
 // WARNING: This function allocates memory with the standard malloc. It must be released with cranh_destroy.
 // If you want to allocate your own memory use the cranh_buffer... family of functions.
-cranh_hierarchy_t* cranh_create(unsigned int maxTransformCount);
+cranh_hierarchy_t* cranh_create(unsigned int groupBufferCount, unsigned int maxGroupTransformCount);
 // Destroy the cranh_hierarchy created with cranh_create. This will also release the memory allocated by cranh_create.
 void cranh_destroy(cranh_hierarchy_t* hierarchy);
 
 // @brief Determines the minimum size necessary to allocate for a buffer.
-// @param maxTransformCount Determines the maximum number of transforms this hierarchy can support
+// @param groupBufferCount determines the number of transform "groups" the hierarchy supports. Groups are intended to be used as job-able
+//        chunks of data.
+// @param maxGroupTransformCount Determines the maximum number of transforms this hierarchy can support per group.
 // Use this function in correspondance with @ref cranh_buffer_create to turn the buffer into a usable chunk of memory.
-unsigned int cranh_buffer_size(unsigned int maxTransformCount);
+unsigned int cranh_buffer_size(unsigned int groupBufferCount, unsigned int maxGroupTransformCount);
 // @brief Takes a buffer as input and initializes the memory into a workable chunk of memory for the remaining API calls.
 // WARNING: cranh_hierarchy_t doesn't have to point to buffer! Call retrieve buffer to get the original pointer.
 // @param buffer An externally allocated chunk of memory of a minimum size of at least @ref cranh_buffer_size.
-cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int maxTransformCount);
-
-void* cranh_retrieve_buffer(cranh_hierarchy_t* hierarchy);
+// @param the number of groups to be created for the hierarchy.
+// @param the number of transforms that fit in a single group.
+cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int groupBufferCount, unsigned int maxGroupTransformCount);
 
 
 cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value);
+cranh_handle_t cranh_add_to_group(cranh_hierarchy_t* hierarchy, cranm_transform_t transform, unsigned int group);
 cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transform_t value, cranh_handle_t parent);
 
-void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy);
+void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy, unsigned int group);
 
 // @brief Reads the local transform addressed by handle
 cranm_transform_t cranh_read_local(cranh_hierarchy_t* hierarchy, cranh_handle_t handle);
@@ -84,6 +91,17 @@ void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform, 
 #define cranh_dirty_end_bit_mask 0x55
 #define cranh_invalid_handle ~0
 #define cranh_buffer_alignment 64
+#define cranh_group_bit_count 8
+#define cranh_max_group_count ((1 << cranh_group_bit_count) - 1)
+#define cranh_transform_bit_count (32 - cranh_group_bit_count)
+#define cranh_max_transform_count ((1 << cranh_transform_bit_count) - 1)
+
+typedef struct
+{
+	unsigned int nextGroup;
+	unsigned int groupCount;
+	unsigned int maxGroupSize;
+} cranh_hierarchy_header_t;
 
 typedef struct
 {
@@ -98,6 +116,21 @@ typedef struct
 	unsigned int rootStart;
 	unsigned int rootEnd;
 } cranh_dirty_scheme_header_t;
+
+unsigned int cranh_group_from_handle(cranh_handle_t handle)
+{
+	return (handle.value >> cranh_transform_bit_count);
+}
+
+unsigned int cranh_index_from_handle(cranh_handle_t handle)
+{
+	return handle.value & cranh_max_transform_count;
+}
+
+cranh_handle_t cranh_create_handle(unsigned int group, unsigned int index)
+{
+	return (cranh_handle_t) { .value = (group << cranh_transform_bit_count) | index };
+}
 
 unsigned int cranh_dirty_scheme_size(unsigned int maxTransformCount)
 {
@@ -156,10 +189,9 @@ uint8_t* cranh_dirty_read(cranh_dirty_scheme_header_t* header, unsigned int inde
 
 typedef struct
 {
-	unsigned int maxTransformCount;
 	unsigned int currentChildTransformCount;
 	unsigned int currentRootTransformCount; // We keep track of the global transforms so we can easily just memcpy them
-} cranh_header_t;
+} cranh_group_header_t;
 
 // Buffer format:
 // header
@@ -169,166 +201,218 @@ typedef struct
 // max child start + end [maxTransformCount]
 // dirty scheme
 
-unsigned int cranh_buffer_size(unsigned int maxTransformCount)
+unsigned int cranh_individual_buffer_size(unsigned int maxGroupTransformCount)
 {
-	return 
-		sizeof(cranh_header_t) +
+	return
+		sizeof(cranh_group_header_t) +
 		(sizeof(cranm_transform_t) +
-		sizeof(cranm_transform_t) +
-		sizeof(cranh_handle_t) + 
-		sizeof(cranh_range_t)) * maxTransformCount +
-		cranh_dirty_scheme_size(maxTransformCount) + cranh_buffer_alignment; // Add 64 bytes, we might need that for alignment
+			sizeof(cranm_transform_t) +
+			sizeof(cranh_handle_t) +
+			sizeof(cranh_range_t)) * maxGroupTransformCount +
+		cranh_dirty_scheme_size(maxGroupTransformCount) + cranh_buffer_alignment; // Add 64 bytes, we might need that for alignment
 }
 
-void* cranh_retrieve_buffer(cranh_hierarchy_t* hierarchy)
+unsigned int cranh_buffer_size(unsigned int groupBufferCount, unsigned int maxGroupTransformCount)
 {
-	uint8_t offset = *((uint8_t*)hierarchy - 1);
-	void* buffer = (void*)((intptr_t)hierarchy - offset);
-	return buffer;
+	size_t bufferSize = cranh_individual_buffer_size(maxGroupTransformCount);
+	return (unsigned int)(bufferSize * groupBufferCount + sizeof(cranh_hierarchy_header_t));
 }
 
-cranh_hierarchy_t* cranh_create(unsigned int maxTransformCount)
+cranh_group_header_t* cranh_retrieve_group_header(cranh_hierarchy_t* hierarchy, unsigned int group)
 {
-	unsigned int bufferSize = cranh_buffer_size(maxTransformCount);
+	cranh_hierarchy_header_t* header = (cranh_hierarchy_header_t*)hierarchy;
+
+	intptr_t bufferAddress = (intptr_t)hierarchy;
+	bufferAddress += sizeof(cranh_hierarchy_header_t) + cranh_individual_buffer_size(header->maxGroupSize) * group;
+	intptr_t offset = cranh_buffer_alignment - (bufferAddress + sizeof(cranh_group_header_t)) % cranh_buffer_alignment;
+	return (cranh_group_header_t*)(bufferAddress + offset);
+}
+
+cranh_hierarchy_t* cranh_create(unsigned int groupCount, unsigned int maxGroupTransformCount)
+{
+	unsigned int bufferSize = cranh_buffer_size(groupCount, maxGroupTransformCount);
 	void* buffer = malloc(bufferSize);
-	return cranh_buffer_create(buffer, maxTransformCount);
+	return cranh_buffer_create(buffer, groupCount, maxGroupTransformCount);
 }
 
 void cranh_destroy(cranh_hierarchy_t* hierarchy)
 {
-	void* buffer = cranh_retrieve_buffer(hierarchy);
-	free(buffer);
+	free(hierarchy);
 }
 
-cranh_dirty_scheme_header_t* cranh_get_dirty_scheme(cranh_hierarchy_t* hierarchy);
-cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int maxSize)
+cranh_dirty_scheme_header_t* cranh_get_dirty_scheme(cranh_hierarchy_t* hierarchy, cranh_group_header_t* group);
+void cranh_group_create(cranh_hierarchy_t* hierarchy, void* groupBuffer, unsigned int group, unsigned int maxGroupSize)
 {
-	// Zero out our buffer before we work with it
-	memset(buffer, 0, cranh_buffer_size(maxSize));
-
 	// We add the size of the header because we don't want to align the header.
 	// we want to align the local buffer and global buffer
-	intptr_t bufferAddress = (intptr_t)buffer;
-	intptr_t offset = cranh_buffer_alignment - (bufferAddress + sizeof(cranh_header_t)) % cranh_buffer_alignment;
-	buffer = (void*)(bufferAddress + offset);
+	intptr_t bufferAddress = (intptr_t)groupBuffer;
+	intptr_t offset = cranh_buffer_alignment - (bufferAddress + sizeof(cranh_group_header_t)) % cranh_buffer_alignment;
+	groupBuffer = (void*)(bufferAddress + offset);
 #ifdef CRANBERRY_DEBUG
 	assert(offset <= UINT8_MAX);
-	assert(((intptr_t)buffer + sizeof(cranh_header_t)) % cranh_buffer_alignment == 0);
+	assert(((intptr_t)groupBuffer + sizeof(cranh_group_header_t)) % cranh_buffer_alignment == 0);
 #endif // CRANBERRY_DEBUG
-	*((uint8_t*)buffer - 1) = (uint8_t)offset;
 
-	cranh_header_t* hierarchyHeader = (cranh_header_t*)buffer;
-	hierarchyHeader->maxTransformCount = maxSize;
-	hierarchyHeader->currentChildTransformCount = 0;
-	hierarchyHeader->currentRootTransformCount = 0;
-	cranh_dirty_reset(cranh_get_dirty_scheme((cranh_hierarchy_t*)hierarchyHeader));
+	cranh_group_header_t* groupHeader = (cranh_group_header_t*)groupBuffer;
+	groupHeader->currentChildTransformCount = 0;
+	groupHeader->currentRootTransformCount = 0;
+	cranh_dirty_reset(cranh_get_dirty_scheme(hierarchy, groupHeader));
+}
+
+cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int groupCount, unsigned int maxGroupSize)
+{
+#ifdef CRANBERRY_DEBUG
+	assert(groupCount < cranh_max_group_count);
+	assert(maxGroupSize < cranh_max_transform_count);
+#endif // CRANBERRY_DEBUG
+
+	unsigned int bufferSize = cranh_buffer_size(groupCount, maxGroupSize);
+	unsigned int groupSize = cranh_individual_buffer_size(maxGroupSize);
+
+	// Zero out our buffer before we work with it
+	memset(buffer, 0, bufferSize);
+
+	cranh_hierarchy_header_t* hierarchyHeader = (cranh_hierarchy_header_t*)buffer;
+	hierarchyHeader->nextGroup = 0;
+	hierarchyHeader->groupCount = groupCount;
+	hierarchyHeader->maxGroupSize = maxGroupSize;
+
+	for (unsigned int i = 0; i < groupCount; ++i)
+	{
+		void* groupBuffer = ((uint8_t*)buffer) + groupSize * i + sizeof(cranh_hierarchy_header_t);
+		cranh_group_create((cranh_hierarchy_t*)hierarchyHeader, groupBuffer, i, maxGroupSize);
+	}
+
 	return (cranh_hierarchy_t*)hierarchyHeader;
 }
 
-// Locals are the first buffer.
-cranm_transform_t* cranh_get_local(cranh_hierarchy_t* hierarchy, unsigned int index)
+// Globals are the first buffer
+cranm_transform_t* cranh_get_global(cranh_hierarchy_t* hierarchy, cranh_group_header_t* group, unsigned int index)
 {
-	uint8_t* bufferStart = (uint8_t*)hierarchy;
-	bufferStart += sizeof(cranh_header_t);
+	// hierarchy unused in this one, but keeping it in the api for consistency
+	(void)hierarchy;
+
+	uint8_t* bufferStart = (uint8_t*)group;
+	bufferStart += sizeof(cranh_group_header_t);
 	return (cranm_transform_t*)bufferStart + index;
 }
 
-// Globals are the second buffer
-cranm_transform_t* cranh_get_global(cranh_hierarchy_t* hierarchy, unsigned int index)
+// Locals are the second buffer.
+cranm_transform_t* cranh_get_local(cranh_hierarchy_t* hierarchy, cranh_group_header_t* group, unsigned int index)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
 
-	uint8_t* bufferStart = (uint8_t*)hierarchy;
-	bufferStart += sizeof(cranh_header_t) + sizeof(cranm_transform_t) * header->maxTransformCount;
+	uint8_t* bufferStart = (uint8_t*)group;
+	bufferStart += sizeof(cranh_group_header_t) + sizeof(cranm_transform_t) * maxGroupSize;
 	return (cranm_transform_t*)bufferStart + index;
 }
 
 // Indices are the third buffer
-cranh_handle_t* cranh_get_parent(cranh_hierarchy_t* hierarchy, unsigned int index)
+cranh_handle_t* cranh_get_parent(cranh_hierarchy_t* hierarchy, cranh_group_header_t* group, unsigned int index)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
 
-	uint8_t* bufferStart = (uint8_t*)hierarchy;
-	bufferStart += sizeof(cranh_header_t) + sizeof(cranm_transform_t) * 2 * header->maxTransformCount;
+	uint8_t* bufferStart = (uint8_t*)group;
+	bufferStart += sizeof(cranh_group_header_t) + sizeof(cranm_transform_t) * 2 * maxGroupSize;
 	return (cranh_handle_t*)bufferStart + index;
 }
 
 // Max child index is the fourth buffer
-cranh_range_t* cranh_get_children_range(cranh_hierarchy_t* hierarchy, unsigned int index)
+cranh_range_t* cranh_get_children_range(cranh_hierarchy_t* hierarchy, cranh_group_header_t* group, unsigned int index)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
 
-	uint8_t* bufferStart = (uint8_t*)hierarchy;
-	bufferStart += sizeof(cranh_header_t) + (sizeof(cranm_transform_t) * 2 + sizeof(cranh_handle_t)) * header->maxTransformCount;
+	uint8_t* bufferStart = (uint8_t*)group;
+	bufferStart += sizeof(cranh_group_header_t) + (sizeof(cranm_transform_t) * 2 + sizeof(cranh_handle_t)) * maxGroupSize;
 	return (cranh_range_t*)bufferStart + index;
 }
 
 // Dirty scheme is the fifth buffer
-cranh_dirty_scheme_header_t* cranh_get_dirty_scheme(cranh_hierarchy_t* hierarchy)
+cranh_dirty_scheme_header_t* cranh_get_dirty_scheme(cranh_hierarchy_t* hierarchy, cranh_group_header_t* group)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
 
-	uint8_t* bufferStart = (uint8_t*)hierarchy;
-	bufferStart += sizeof(cranh_header_t) + (sizeof(cranm_transform_t) * 2 + sizeof(cranh_handle_t) + sizeof(cranh_range_t)) * header->maxTransformCount;
+	uint8_t* bufferStart = (uint8_t*)group;
+	bufferStart += sizeof(cranh_group_header_t) + (sizeof(cranm_transform_t) * 2 + sizeof(cranh_handle_t) + sizeof(cranh_range_t)) * maxGroupSize;
 	return (cranh_dirty_scheme_header_t*)bufferStart;
 }
 
-cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t value)
+cranh_handle_t cranh_add(cranh_hierarchy_t* hierarchy, cranm_transform_t transform)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	cranh_hierarchy_header_t* hierarchyHeader = (cranh_hierarchy_header_t*)hierarchy;
+
+	unsigned int group = hierarchyHeader->nextGroup;
+	hierarchyHeader->nextGroup = (hierarchyHeader->nextGroup + 1) % hierarchyHeader->groupCount;
+	return cranh_add_to_group(hierarchy, transform, group);
+}
+
+cranh_handle_t cranh_add_to_group(cranh_hierarchy_t* hierarchy, cranm_transform_t transform, unsigned int group)
+{
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
+
+	cranh_group_header_t* header = cranh_retrieve_group_header(hierarchy, group);
 	++header->currentRootTransformCount;
-	unsigned int transformHandle = header->maxTransformCount - header->currentRootTransformCount;
+	unsigned int transformHandle = maxGroupSize - header->currentRootTransformCount;
 
 #ifdef CRANBERRY_DEBUG
 	// If our transform handle is less than our child transform count, that means our memory has overflwed.
 	assert(transformHandle > header->currentChildTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	cranm_transform_t* local = cranh_get_local(hierarchy, transformHandle);
-	cranm_transform_t* global = cranh_get_global(hierarchy, transformHandle);
-	cranh_handle_t* parent = cranh_get_parent(hierarchy, transformHandle);
+	cranm_transform_t* local = cranh_get_local(hierarchy, header, transformHandle);
+	cranm_transform_t* global = cranh_get_global(hierarchy, header, transformHandle);
+	cranh_handle_t* parent = cranh_get_parent(hierarchy, header, transformHandle);
 
 	parent->value = cranh_invalid_handle;
-	*global = value;
-	*local = value;
+	*global = transform;
+	*local = transform;
 
 	// dirty setup
-	cranh_range_t* currentChildrenRange = cranh_get_children_range(hierarchy, transformHandle);
+	cranh_range_t* currentChildrenRange = cranh_get_children_range(hierarchy, header, transformHandle);
 	currentChildrenRange->start = cranh_invalid_handle;
 	currentChildrenRange->end = 0;
 
-	return (cranh_handle_t){ .value = transformHandle };
+	return cranh_create_handle(group, transformHandle);
 }
 
-cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transform_t value, cranh_handle_t parentHandle)
+cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transform_t transform, cranh_handle_t parentHandle)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	unsigned int parentGroup = cranh_group_from_handle(parentHandle);
+	unsigned int parentIndex = cranh_index_from_handle(parentHandle);
+
+	cranh_group_header_t* header = cranh_retrieve_group_header(hierarchy, parentGroup);
 	unsigned int transformHandle = header->currentChildTransformCount;
 	++header->currentChildTransformCount;
 
 #ifdef CRANBERRY_DEBUG
-	assert(transformHandle < header->maxTransformCount);
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
+
+	assert(transformHandle < maxGroupSize);
 	assert(
-		   (parentHandle.value < header->currentChildTransformCount && parentHandle.value < transformHandle)
-		|| header->maxTransformCount - parentHandle.value <= header->currentRootTransformCount);
+		   (parentIndex < header->currentChildTransformCount && parentIndex < transformHandle)
+		|| maxGroupSize - parentIndex <= header->currentRootTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	cranm_transform_t* local = cranh_get_local(hierarchy, transformHandle);
-	cranm_transform_t* global = cranh_get_global(hierarchy, transformHandle);
-	cranh_handle_t* parent = cranh_get_parent(hierarchy, transformHandle);
+	cranm_transform_t* local = cranh_get_local(hierarchy, header, transformHandle);
+	cranm_transform_t* global = cranh_get_global(hierarchy, header, transformHandle);
+	cranh_handle_t* parent = cranh_get_parent(hierarchy, header, transformHandle);
 
 	*parent = parentHandle;
-	*global = cranm_transform(value, *cranh_get_global(hierarchy, parentHandle.value));
-	*local = value;
+	*global = cranm_transform(transform, *cranh_get_global(hierarchy, header, parentIndex));
+	*local = transform;
 
-	cranh_range_t* currentChildrenRange = cranh_get_children_range(hierarchy, transformHandle);
+	cranh_range_t* currentChildrenRange = cranh_get_children_range(hierarchy, header, transformHandle);
 	currentChildrenRange->start = cranh_invalid_handle;
 	currentChildrenRange->end = 0;
 
 	// Update all of the parents
 	while (parentHandle.value != cranh_invalid_handle)
 	{
-		cranh_range_t* parentChildrenRange = cranh_get_children_range(hierarchy, parentHandle.value);
+		// We don't actually need the parent group, all children should be in the same group
+		// unsigned int searchParentGroup = cranh_group_from_handle(parentHandle);
+		unsigned int searchParentIndex = cranh_index_from_handle(parentHandle);
+
+		cranh_range_t* parentChildrenRange = cranh_get_children_range(hierarchy, header, searchParentIndex);
 
 		parentChildrenRange->start = parentChildrenRange->start == cranh_invalid_handle ? transformHandle : parentChildrenRange->start;
 #ifdef CRANBERRY_DEBUG
@@ -336,50 +420,62 @@ cranh_handle_t cranh_add_with_parent(cranh_hierarchy_t* hierarchy, cranm_transfo
 #endif // CRANBERRY_DEBUG
 		parentChildrenRange->end = parentChildrenRange->end < transformHandle ? transformHandle : parentChildrenRange->end;
 
-		parentHandle = *cranh_get_parent(hierarchy, parentHandle.value);
+		parentHandle = *cranh_get_parent(hierarchy, header, searchParentIndex);
 	}
 
-	return (cranh_handle_t){ .value = transformHandle };
+	return cranh_create_handle(parentGroup, transformHandle);
 }
 
 cranm_transform_t cranh_read_local(cranh_hierarchy_t* hierarchy, cranh_handle_t handle)
 {
+	unsigned int group = cranh_group_from_handle(handle);
+	unsigned int index = cranh_index_from_handle(handle);
+
+	cranh_group_header_t* header = cranh_retrieve_group_header(hierarchy, group);
 #ifdef CRANBERRY_DEBUG
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
-	assert(handle.value < header->currentChildTransformCount || header->maxTransformCount - handle.value < header->currentRootTransformCount);
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
+	assert(index < header->currentChildTransformCount || maxGroupSize - index < header->currentRootTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, handle.value);
+	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, header, index);
 	if (parentHandle.value != cranh_invalid_handle)
 	{
-		return cranm_inverse_transform(*cranh_get_global(hierarchy, handle.value), *cranh_get_global(hierarchy, parentHandle.value));
+		// We don't need the parent group, it should be in the same group as the child
+		// unsigned int parentGroup = cranh_group_from_handle(parentHandle);
+		unsigned int parentIndex = cranh_index_from_handle(parentHandle);
+		return cranm_inverse_transform(*cranh_get_global(hierarchy, header, index), *cranh_get_global(hierarchy, header, parentIndex));
 	}
 	else
 	{
-		return *cranh_get_global(hierarchy, handle.value);
+		return *cranh_get_global(hierarchy, header, index);
 	}
 }
 
 void cranh_write_local(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cranm_transform_t write)
 {
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
+	unsigned int group = cranh_group_from_handle(handle);
+	unsigned int index = cranh_index_from_handle(handle);
+
+	cranh_group_header_t* header = cranh_retrieve_group_header(hierarchy, group);
 
 #ifdef CRANBERRY_DEBUG
-	assert(handle.value < header->currentChildTransformCount || header->maxTransformCount - handle.value < header->currentRootTransformCount);
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
+	assert(index < header->currentChildTransformCount || maxGroupSize - index < header->currentRootTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	*cranh_get_local(hierarchy, handle.value) = write;
+	*cranh_get_local(hierarchy, header, index) = write;
 
-	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy);
-	cranh_range_t* childrenRange = cranh_get_children_range(hierarchy, handle.value);
+	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy, header);
+	cranh_range_t* childrenRange = cranh_get_children_range(hierarchy, header, index);
 
-	if (handle.value > header->currentChildTransformCount)
+	// If we're a transform at the end of the buffer, we're a root
+	if (index > header->currentChildTransformCount)
 	{
-		cranh_dirty_add_root(dirtyScheme, handle.value);
+		cranh_dirty_add_root(dirtyScheme, index);
 	}
 	else
 	{
-		cranh_dirty_add_child(dirtyScheme, handle.value);
+		cranh_dirty_add_child(dirtyScheme, index);
 	}
 
 	if (childrenRange->start != cranh_invalid_handle)
@@ -390,36 +486,48 @@ void cranh_write_local(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cran
 
 cranm_transform_t cranh_read_global(cranh_hierarchy_t* hierarchy, cranh_handle_t handle)
 {
+	unsigned int group = cranh_group_from_handle(handle);
+	unsigned int index = cranh_index_from_handle(handle);
+
+	cranh_group_header_t* header = cranh_retrieve_group_header(hierarchy, group);
 #ifdef CRANBERRY_DEBUG
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
-	assert(handle.value < header->currentChildTransformCount || header->maxTransformCount - handle.value <= header->currentRootTransformCount);
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
+	assert(index < header->currentChildTransformCount || maxGroupSize - index <= header->currentRootTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	return *cranh_get_global(hierarchy, handle.value);
+	return *cranh_get_global(hierarchy, header, index);
 }
 
 void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cranm_transform_t write)
 {
+	unsigned int group = cranh_group_from_handle(handle);
+	unsigned int index = cranh_index_from_handle(handle);
+
+	cranh_group_header_t* header = cranh_retrieve_group_header(hierarchy, group);
 #ifdef CRANBERRY_DEBUG
-	cranh_header_t* header = (cranh_header_t*)hierarchy;
-	assert(handle.value < header->currentChildTransformCount || header->maxTransformCount - handle.value <= header->currentRootTransformCount);
+	unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
+	assert(index < header->currentChildTransformCount || maxGroupSize - index <= header->currentRootTransformCount);
 #endif // CRANBERRY_DEBUG
 
-	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy);
+	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy, header);
 
-	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, handle.value);
+	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, header, index);
 	if (parentHandle.value != cranh_invalid_handle)
 	{
-		*cranh_get_local(hierarchy, handle.value) = cranm_inverse_transform(write, *cranh_get_global(hierarchy, parentHandle.value));
-		cranh_dirty_add_child(dirtyScheme, handle.value);
+		// Parent should be in the same group as the child
+		// unsigned int parentGroup = cranh_group_from_handle(parentHandle);
+		unsigned int parentIndex = cranh_index_from_handle(parentHandle);
+
+		*cranh_get_local(hierarchy, header, index) = cranm_inverse_transform(write, *cranh_get_global(hierarchy, header, parentIndex));
+		cranh_dirty_add_child(dirtyScheme, index);
 	}
 	else
 	{
-		*cranh_get_local(hierarchy, handle.value) = write;
-		cranh_dirty_add_root(dirtyScheme, handle.value);
+		*cranh_get_local(hierarchy, header, index) = write;
+		cranh_dirty_add_root(dirtyScheme, index);
 	}
 
-	cranh_range_t* childrenRange = cranh_get_children_range(hierarchy, handle.value);
+	cranh_range_t* childrenRange = cranh_get_children_range(hierarchy, header, index);
 	if (childrenRange->start != cranh_invalid_handle)
 	{
 		cranh_dirty_add_child_interval(dirtyScheme, *childrenRange);
@@ -434,17 +542,18 @@ uint8_t cranh_bit_count(uint8_t i)
 	return i;
 }
 
-void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
+void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy, unsigned int group)
 {
-	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy);
+	cranh_group_header_t* header = cranh_retrieve_group_header(hierarchy, group);
+	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy, header);
 
 	// Transform root transforms
 	{
 		uint8_t* rootStart = cranh_dirty_read(dirtyScheme, dirtyScheme->rootStart);
 		uint8_t* rootEnd = cranh_dirty_read(dirtyScheme, dirtyScheme->rootEnd);
 
-		cranm_transform_t* localIter = cranh_get_local(hierarchy, dirtyScheme->rootStart);
-		cranm_transform_t* globalIter = cranh_get_global(hierarchy, dirtyScheme->rootStart);
+		cranm_transform_t* localIter = cranh_get_local(hierarchy, header, dirtyScheme->rootStart);
+		cranm_transform_t* globalIter = cranh_get_global(hierarchy, header, dirtyScheme->rootStart);
 
 		unsigned int dirtyStack = 0;
 		for (uint8_t* iter = rootStart; iter <= rootEnd; ++iter, localIter += 4, globalIter += 4)
@@ -463,9 +572,9 @@ void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
 		uint8_t* childStart = cranh_dirty_read(dirtyScheme, dirtyScheme->childStart);
 		uint8_t* childEnd = cranh_dirty_read(dirtyScheme, dirtyScheme->childEnd);
 
-		cranm_transform_t* localIter = cranh_get_local(hierarchy, dirtyScheme->childStart);
-		cranm_transform_t* globalIter = cranh_get_global(hierarchy, dirtyScheme->childStart);
-		cranh_handle_t* parentIter = cranh_get_parent(hierarchy, dirtyScheme->childStart);
+		cranm_transform_t* localIter = cranh_get_local(hierarchy, header, dirtyScheme->childStart);
+		cranm_transform_t* globalIter = cranh_get_global(hierarchy, header, dirtyScheme->childStart);
+		cranh_handle_t* parentIter = cranh_get_parent(hierarchy, header, dirtyScheme->childStart);
 
 		unsigned int dirtyStack = 0;
 		for (uint8_t* iter = childStart; iter <= childEnd; ++iter, localIter += 4, globalIter += 4, parentIter += 4)
@@ -475,17 +584,18 @@ void cranh_transform_locals_to_globals(cranh_hierarchy_t* hierarchy)
 			{
 				for (unsigned int i = 0; i < 4; ++i)
 				{
-					unsigned int parentIndex = (parentIter + i)->value;
+					unsigned int parentIndex = cranh_index_from_handle(*(parentIter + i));
 
 #ifdef CRANBERRY_DEBUG
-					intptr_t currentTransformIndex = localIter - cranh_get_local(hierarchy, dirtyScheme->childStart);
-					cranh_header_t* header = (cranh_header_t*)hierarchy;
+					unsigned int maxGroupSize = ((cranh_hierarchy_header_t*)hierarchy)->maxGroupSize;
+
+					intptr_t currentTransformIndex = localIter - cranh_get_local(hierarchy, header, dirtyScheme->childStart);
 					assert(
 						(parentIndex < header->currentChildTransformCount && parentIndex < currentTransformIndex)
-						|| header->maxTransformCount - parentIndex <= header->currentRootTransformCount);
+						|| maxGroupSize - parentIndex <= header->currentRootTransformCount);
 #endif // CRANBERRY_DEBUG
 
-					cranm_transform_t* parent = cranh_get_global(hierarchy, parentIndex);
+					cranm_transform_t* parent = cranh_get_global(hierarchy, header, parentIndex);
 					*(globalIter + i) = cranm_transform(*(localIter + i), *parent);
 				}
 			}
