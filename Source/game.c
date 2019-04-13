@@ -228,6 +228,7 @@ void game_cleanup(void)
 
 unsigned int game_gen_instance_buffer(game_instance_t* buffer, unsigned int maxSize)
 {
+	MIST_PROFILE_BEGIN("game", "game_gen_instance_buffer");
 	for (uint32_t i = 0; i < render_count; i++)
 	{
 		buffer[i] = (game_instance_t)
@@ -236,6 +237,6 @@ unsigned int game_gen_instance_buffer(game_instance_t* buffer, unsigned int maxS
 			.color = { 1.0f, 0.7f, 0.0f }
 		};
 	}
-
+	MIST_PROFILE_END("game", "game_gen_instance_buffer");
 	return render_count;
 }
