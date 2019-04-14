@@ -25,13 +25,13 @@
 
 void test()
 {
-	cranm_transform_t c = { .pos = {.x = 5.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {.x = 1.0f,.y = 1.0f,.z = 1.0f} };
+	cranm_transform_t c = { .pos = {.x = 5.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = 1.0f };
 
-	cranm_transform_t p = { .pos = {.x = 5.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {.x = 5.0f,.y = 5.0f,.z = 5.0f} };
+	cranm_transform_t p = { .pos = {.x = 5.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = 5.0f };
 
 	cranm_transform_t rt = cranm_transform(c, p);
 
-	cranm_transform_t t = { .pos = {.x = 30.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {5.0f, 5.0f, 5.0f} };
+	cranm_transform_t t = { .pos = {.x = 30.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = 5.0f };
 	assert(memcmp(&rt, &t, sizeof(cranm_transform_t)) == 0);
 
 	cranh_hierarchy_t* hierarchy = cranh_create(2, 5);

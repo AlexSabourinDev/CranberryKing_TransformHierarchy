@@ -135,7 +135,7 @@ void game_init(void)
 		{
 			.pos = { (float)((i - 2) * 5), randf(0.0f, 5.0f), randf(15.0f, 25.0f), 0.0f},
 			.rot = cranm_axis_angleq(cranm_normalize3(randV), randf(0.0f, 2.0f * PI)),
-			.scale = {0.3f, 0.3f, 0.3f, 0.0f}
+			.scale = 0.3f
 		};
 
 		cranh_handle_t h = cranh_add(transform_hierarchy, t);
@@ -151,7 +151,7 @@ void game_init(void)
 					{
 						.pos = {cx * 0.75f, cy * 0.75f, cz * 0.75f, 0.0f},
 						.rot = cranm_axis_angleq(cranm_normalize3(crandV), randf(0.0f, 2.0f * PI)),
-						.scale = {0.1f, 0.1f, 0.1f, 0.0f}
+						.scale = 0.1f
 					};
 
 					cranh_handle_t ch = cranh_add_with_parent(transform_hierarchy, c, h);

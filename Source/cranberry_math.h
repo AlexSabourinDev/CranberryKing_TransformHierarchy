@@ -31,7 +31,7 @@ typedef struct
 {
 	cranm_quat_t rot;
 	cranm_vec_t pos;
-	cranm_vec_t scale;
+	float scale;
 } cranm_transform_t;
 
 typedef struct
@@ -346,20 +346,20 @@ inline cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t 
 	return (cranm_transform_t)
 	{
 		.rot = cranm_mulq(t.rot, by.rot),
-		.pos = cranm_add3(cranm_rot3(cranm_scale3(t.pos, by.scale), by.rot), by.pos),
-		.scale = cranm_scale3(t.scale, by.scale)
+		.pos = cranm_add3(cranm_rot3(cranm_scale(t.pos, by.scale), by.rot), by.pos),
+		.scale = t.scale * by.scale
 	};
 }
 
 inline cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by)
 {
-	cranm_vec_t inverseScale = cranm_recriprocal3(by.scale);
+	float inverseScale = 1.0f / by.scale;
 
 	return (cranm_transform_t)
 	{
 		.rot = cranm_inverse_mulq(t.rot, by.rot),
-		.pos = cranm_scale3(cranm_inverse_rot3(cranm_sub3(t.pos, by.pos), by.rot), inverseScale),
-		.scale = cranm_scale3(t.scale, inverseScale)
+		.pos = cranm_scale(cranm_inverse_rot3(cranm_sub3(t.pos, by.pos), by.rot), inverseScale),
+		.scale = t.scale * inverseScale
 	};
 }
 
