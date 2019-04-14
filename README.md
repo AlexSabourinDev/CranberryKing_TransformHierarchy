@@ -15,6 +15,8 @@ The goal is not to have a complete library that someone could implement into the
 
 ## Results
 
+https://cranberryking.com/2019/04/14/creating-an-optimized-transform-hierarchy/
+
 This transform hierarchy aims to have a simple API with very little to worry about while still providing good performance.
 
 This library works in fixed step. This means that the transforms are only up to date once cranh_transform_locals_to_globals is called. This decision was made in order to provide a clear view of the transition from the previous frame's position to the current frame's position.
