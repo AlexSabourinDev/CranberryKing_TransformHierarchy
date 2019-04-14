@@ -41,32 +41,32 @@ typedef struct
 
 // API
 
-static cranm_vec_t cranm_add3(cranm_vec_t l, cranm_vec_t r);
-static cranm_vec_t cranm_sub3(cranm_vec_t l, cranm_vec_t r);
-static cranm_vec_t cranm_scale(cranm_vec_t l, float s);
-static cranm_vec_t cranm_scale3(cranm_vec_t l, cranm_vec_t r);
-static cranm_vec_t cranm_cross(cranm_vec_t l, cranm_vec_t r);
-static cranm_vec_t cranm_normalize3(cranm_vec_t v);
-static cranm_vec_t cranm_recriprocal3(cranm_vec_t v);
+inline cranm_vec_t cranm_add3(cranm_vec_t l, cranm_vec_t r);
+inline cranm_vec_t cranm_sub3(cranm_vec_t l, cranm_vec_t r);
+inline cranm_vec_t cranm_scale(cranm_vec_t l, float s);
+inline cranm_vec_t cranm_scale3(cranm_vec_t l, cranm_vec_t r);
+inline cranm_vec_t cranm_cross(cranm_vec_t l, cranm_vec_t r);
+inline cranm_vec_t cranm_normalize3(cranm_vec_t v);
+inline cranm_vec_t cranm_recriprocal3(cranm_vec_t v);
 
-static cranm_vec_t cranm_quat_t_xyz(cranm_quat_t q);
-static cranm_quat_t cranm_axis_angleq(cranm_vec_t axis, float angle);
-static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r);
-static cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r);
-static cranm_quat_t cranm_inverseq(cranm_quat_t q);
-static cranm_vec_t cranm_rot3(cranm_vec_t v, cranm_quat_t r);
-static cranm_vec_t cranm_inverse_rot3(cranm_vec_t v, cranm_quat_t r);
+inline cranm_vec_t cranm_quat_t_xyz(cranm_quat_t q);
+inline cranm_quat_t cranm_axis_angleq(cranm_vec_t axis, float angle);
+inline cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r);
+inline cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r);
+inline cranm_quat_t cranm_inverseq(cranm_quat_t q);
+inline cranm_vec_t cranm_rot3(cranm_vec_t v, cranm_quat_t r);
+inline cranm_vec_t cranm_inverse_rot3(cranm_vec_t v, cranm_quat_t r);
 
-static cranm_mat4x4_t cranm_identity4x4();
-static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r);
-static cranm_mat4x4_t cranm_perspective(float near, float far, float fov);
+inline cranm_mat4x4_t cranm_identity4x4();
+inline cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r);
+inline cranm_mat4x4_t cranm_perspective(float near, float far, float fov);
 
-static cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t by);
-static cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by);
+inline cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t by);
+inline cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by);
 
 // IMPL
 
-static cranm_vec_t cranm_add3(cranm_vec_t l, cranm_vec_t r)
+inline cranm_vec_t cranm_add3(cranm_vec_t l, cranm_vec_t r)
 {
 #ifdef CRANBERRY_SSE
 	__m128 lv = _mm_load_ps((float*)&l);
@@ -80,7 +80,7 @@ static cranm_vec_t cranm_add3(cranm_vec_t l, cranm_vec_t r)
 #endif // CRANBERRY_SSE
 }
 
-static cranm_vec_t cranm_sub3(cranm_vec_t l, cranm_vec_t r)
+inline cranm_vec_t cranm_sub3(cranm_vec_t l, cranm_vec_t r)
 {
 #ifdef CRANBERRY_SSE
 	__m128 lv = _mm_load_ps((float*)&l);
@@ -94,7 +94,7 @@ static cranm_vec_t cranm_sub3(cranm_vec_t l, cranm_vec_t r)
 #endif // CRANBERRY_SSE
 }
 
-static cranm_vec_t cranm_scale(cranm_vec_t l, float s)
+inline cranm_vec_t cranm_scale(cranm_vec_t l, float s)
 {
 #ifdef CRANBERRY_SSE
 	__m128 sv = _mm_set1_ps(s);
@@ -108,7 +108,7 @@ static cranm_vec_t cranm_scale(cranm_vec_t l, float s)
 #endif // CRANBERRY_SSE
 }
 
-static cranm_vec_t cranm_scale3(cranm_vec_t l, cranm_vec_t r)
+inline cranm_vec_t cranm_scale3(cranm_vec_t l, cranm_vec_t r)
 {
 #ifdef CRANBERRY_SSE
 	__m128 lv = _mm_load_ps((float*)&l);
@@ -122,7 +122,7 @@ static cranm_vec_t cranm_scale3(cranm_vec_t l, cranm_vec_t r)
 #endif // CRANBERRY_SSE
 }
 
-static cranm_vec_t cranm_cross(cranm_vec_t l, cranm_vec_t r)
+inline cranm_vec_t cranm_cross(cranm_vec_t l, cranm_vec_t r)
 {
 #ifdef CRANBERRY_SSE
 	__m128 lv = _mm_load_ps((float*)&l);
@@ -150,13 +150,13 @@ static cranm_vec_t cranm_cross(cranm_vec_t l, cranm_vec_t r)
 #endif // CRANBERRY_SSE
 }
 
-static cranm_vec_t cranm_normalize3(cranm_vec_t v)
+inline cranm_vec_t cranm_normalize3(cranm_vec_t v)
 {
 	float rm = 1.0f / sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 	return (cranm_vec_t) { .x = v.x * rm, .y = v.y * rm, .z = v.z * rm };
 }
 
-static cranm_vec_t cranm_recriprocal3(cranm_vec_t v)
+inline cranm_vec_t cranm_recriprocal3(cranm_vec_t v)
 {
 #ifdef CRANBERRY_SSE
 	__m128 lv = _mm_load_ps((float*)&v);
@@ -169,12 +169,12 @@ static cranm_vec_t cranm_recriprocal3(cranm_vec_t v)
 #endif // CRANBERRY_SSE
 }
 
-static cranm_vec_t cranm_quat_t_xyz(cranm_quat_t q)
+inline cranm_vec_t cranm_quat_t_xyz(cranm_quat_t q)
 {
 	return (cranm_vec_t) { .x = q.x, .y = q.y, .z = q.z, .w = 0.0f };
 }
 
-static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
+inline cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
 {
 #ifdef CRANBERRY_SSE
 	__m128 q = _mm_load_ps((float*)&r);
@@ -221,7 +221,7 @@ static cranm_quat_t cranm_mulq(cranm_quat_t l, cranm_quat_t r)
 #endif // CRANBERRY_SSE
 }
 
-static cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r)
+inline cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r)
 {
 #ifdef CRANBERRY_SSE
 	__m128 q = _mm_load_ps((float*)&r);
@@ -270,19 +270,19 @@ static cranm_quat_t cranm_inverse_mulq(cranm_quat_t l, cranm_quat_t r)
 #endif // CRANBERRY_SSE
 }
 
-static cranm_quat_t cranm_axis_angleq(cranm_vec_t axis, float angle)
+inline cranm_quat_t cranm_axis_angleq(cranm_vec_t axis, float angle)
 {
 	float cr = cosf(angle * 0.5f);
 	float sr = sinf(angle * 0.5f);
 	return (cranm_quat_t) { .w = cr, .x = axis.x * sr, .y = axis.y * sr, .z = axis.z * sr };
 }
 
-static cranm_quat_t cranm_inverseq(cranm_quat_t q)
+inline cranm_quat_t cranm_inverseq(cranm_quat_t q)
 {
 	return (cranm_quat_t) { .x = -q.x, .y = -q.y, .z = -q.z, .w = q.w };
 }
 
-static cranm_vec_t cranm_rot3(cranm_vec_t v, cranm_quat_t r)
+inline cranm_vec_t cranm_rot3(cranm_vec_t v, cranm_quat_t r)
 {
 	cranm_vec_t t = cranm_scale(cranm_quat_t_xyz(r), 2.0f);
 	t = cranm_cross(t, v);
@@ -291,7 +291,7 @@ static cranm_vec_t cranm_rot3(cranm_vec_t v, cranm_quat_t r)
 	return cranm_add3(res, cranm_cross(cranm_quat_t_xyz(r), t));
 }
 
-static cranm_vec_t cranm_inverse_rot3(cranm_vec_t v, cranm_quat_t r)
+inline cranm_vec_t cranm_inverse_rot3(cranm_vec_t v, cranm_quat_t r)
 {
 	cranm_vec_t t = cranm_scale(cranm_quat_t_xyz(r), -2.0f);
 	t = cranm_cross(t, v);
@@ -300,14 +300,14 @@ static cranm_vec_t cranm_inverse_rot3(cranm_vec_t v, cranm_quat_t r)
 	return cranm_add3(res, cranm_cross(cranm_scale(cranm_quat_t_xyz(r), -1.0f), t));
 }
 
-static cranm_mat4x4_t cranm_identity4x4()
+inline cranm_mat4x4_t cranm_identity4x4()
 {
 	cranm_mat4x4_t mat;
 	mat.m[0] = mat.m[5] = mat.m[10] = mat.m[15] = 1.0f;
 	return mat;
 }
 
-static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
+inline cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
 {
 	cranm_mat4x4_t mat;
 
@@ -327,7 +327,7 @@ static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
 	return mat;
 }
 
-static cranm_mat4x4_t cranm_perspective(float near, float far, float fov)
+inline cranm_mat4x4_t cranm_perspective(float near, float far, float fov)
 {
 	float s = 1.0f / tanf(fov * 3.14159265358979f / 360.0f);
 
@@ -341,7 +341,7 @@ static cranm_mat4x4_t cranm_perspective(float near, float far, float fov)
 	return mat;
 }
 
-static cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t by)
+inline cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t by)
 {
 	return (cranm_transform_t)
 	{
@@ -351,7 +351,7 @@ static cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t 
 	};
 }
 
-static cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by)
+inline cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by)
 {
 	cranm_vec_t inverseScale = cranm_recriprocal3(by.scale);
 

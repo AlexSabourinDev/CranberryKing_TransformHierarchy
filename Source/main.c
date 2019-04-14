@@ -53,9 +53,7 @@ void test()
 
 const uint16_t window_Width = 1024;
 const uint16_t window_Height = 720;
-const char* window_Title = "Tower Fight?";
-
-static uint64_t time_LastFrame = 0;
+const char* window_Title = "Blocks";
 
 const uint8_t render_SampleCount = 4;
 static sg_draw_state render_DrawState;
@@ -164,8 +162,7 @@ void core_frame(void)
 	int width = sapp_width();
 	int height = sapp_height();
 
-	uint64_t lap = stm_laptime(&time_LastFrame);
-	game_tick((float)stm_sec(lap));
+	game_tick();
 
 	unsigned int instanceCount = game_gen_instance_buffer(render_InstanceBuffer, render_MaxInstanceCount);
 	sg_update_buffer(render_DrawState.vertex_buffers[0], render_InstanceBuffer, instanceCount * sizeof(game_instance_t));

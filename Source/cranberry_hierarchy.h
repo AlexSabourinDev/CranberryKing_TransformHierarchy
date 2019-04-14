@@ -89,7 +89,7 @@ void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t transform, 
 #define cranh_dirty_start_bit_mask 0xAA
 #define cranh_dirty_end_flag 0x01
 #define cranh_dirty_end_bit_mask 0x55
-#define cranh_invalid_handle ~0
+#define cranh_invalid_handle ~0U
 #define cranh_buffer_alignment 64
 #define cranh_group_bit_count 8
 #define cranh_max_group_count ((1 << cranh_group_bit_count) - 1)
@@ -241,7 +241,7 @@ void cranh_destroy(cranh_hierarchy_t* hierarchy)
 }
 
 cranh_dirty_scheme_header_t* cranh_get_dirty_scheme(cranh_hierarchy_t* hierarchy, cranh_group_header_t* group);
-void cranh_group_create(cranh_hierarchy_t* hierarchy, void* groupBuffer, unsigned int group, unsigned int maxGroupSize)
+void cranh_group_create(cranh_hierarchy_t* hierarchy, void* groupBuffer)
 {
 	// We add the size of the header because we don't want to align the header.
 	// we want to align the local buffer and global buffer
@@ -280,7 +280,7 @@ cranh_hierarchy_t* cranh_buffer_create(void* buffer, unsigned int groupCount, un
 	for (unsigned int i = 0; i < groupCount; ++i)
 	{
 		void* groupBuffer = ((uint8_t*)buffer) + groupSize * i + sizeof(cranh_hierarchy_header_t);
-		cranh_group_create((cranh_hierarchy_t*)hierarchyHeader, groupBuffer, i, maxGroupSize);
+		cranh_group_create((cranh_hierarchy_t*)hierarchyHeader, groupBuffer);
 	}
 
 	return (cranh_hierarchy_t*)hierarchyHeader;

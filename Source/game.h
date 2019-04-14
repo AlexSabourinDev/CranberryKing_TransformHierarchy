@@ -9,7 +9,7 @@ typedef struct
 } game_instance_t;
 
 void game_init(void);
-void game_tick(float delta);
+void game_tick();
 void game_cleanup(void);
 
 unsigned int game_gen_instance_buffer(game_instance_t* buffer, unsigned int maxSize);

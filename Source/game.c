@@ -146,11 +146,11 @@ void game_init(void)
 			{
 				for (int cz = -cube_half_dimension; cz < cube_half_dimension; ++cz)
 				{
-					cranm_vec_t randV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f), 0.0f };
+					cranm_vec_t crandV = { .x = randf(-1.0f, 1.0f),.y = randf(-1.0f, 1.0f),.z = randf(-1.0f, 1.0f), 0.0f };
 					cranm_transform_t c =
 					{
 						.pos = {cx * 0.75f, cy * 0.75f, cz * 0.75f, 0.0f},
-						.rot = cranm_axis_angleq(cranm_normalize3(randV), randf(0.0f, 2.0f * PI)),
+						.rot = cranm_axis_angleq(cranm_normalize3(crandV), randf(0.0f, 2.0f * PI)),
 						.scale = {0.1f, 0.1f, 0.1f, 0.0f}
 					};
 
@@ -188,7 +188,7 @@ void game_init(void)
 	InterlockedExchange(&transform_done_count, 0);
 }
 
-void game_tick(float delta)
+void game_tick()
 {
 	MIST_PROFILE_BEGIN("game", "game_tick");
 
@@ -229,6 +229,7 @@ void game_cleanup(void)
 unsigned int game_gen_instance_buffer(game_instance_t* buffer, unsigned int maxSize)
 {
 	MIST_PROFILE_BEGIN("game", "game_gen_instance_buffer");
+	assert(render_count <= maxSize);
 	for (uint32_t i = 0; i < render_count; i++)
 	{
 		buffer[i] = (game_instance_t)

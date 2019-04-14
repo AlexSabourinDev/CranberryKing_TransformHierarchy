@@ -5,49 +5,25 @@ clang-cl.exe : warning : argument unused during compilation: '-O3' [-Wunused-com
 ..\..\..\Source\game.c(180,4): warning : cast to 'LPVOID' (aka 'void *') from smaller integer type 'unsigned int' [-Wint-to-void-pointer-cast]
                           (LPVOID)i,
                           ^
-  In file included from ..\..\..\Source\game.c:2:
-  In file included from ..\..\..\Source/game.h:3:
-..\..\..\Source/cranberry_math.h(280,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
-  static cranm_quat_t cranm_inverseq(cranm_quat_t q)
-                      ^
-..\..\..\Source/cranberry_math.h(303,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
-  static cranm_mat4x4_t cranm_identity4x4()
-                        ^
-..\..\..\Source/cranberry_math.h(310,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
-  static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
-                        ^
-..\..\..\Source/cranberry_math.h(330,23): warning : unused function 'cranm_perspective' [-Wunused-function]
-  static cranm_mat4x4_t cranm_perspective(float near, float far, float fov)
-                        ^
-..\..\..\Source/cranberry_math.h(344,26): warning : unused function 'cranm_transform' [-Wunused-function]
-  static cranm_transform_t cranm_transform(cranm_transform_t t, cranm_transform_t by)
+  1 warning generated.
+  In file included from ..\..\..\Source\main.c:16:
+..\..\..\Source/3rd/sokol_gfx.h(2718,54): warning : unused parameter 'desc' [-Wunused-parameter]
+  _SOKOL_PRIVATE void _sg_setup_backend(const sg_desc* desc) {
+                                                       ^
+..\..\..\Source\main.c(34,103): warning : missing field 'w' initializer [-Wmissing-field-initializers]
+          cranm_transform_t t = { .pos = {.x = 30.0f,.y = 0.0f,.z = 0.0f},.rot = {0},.scale = {5.0f, 5.0f, 5.0f} };
+                                                                                                               ^
+..\..\..\Source\main.c(205,26): warning : unused parameter 'argc' [-Wunused-parameter]
+  sapp_desc sokol_main(int argc, char* argv[])
                            ^
-..\..\..\Source/cranberry_math.h(354,26): warning : unused function 'cranm_inverse_transform' [-Wunused-function]
-  static cranm_transform_t cranm_inverse_transform(cranm_transform_t t, cranm_transform_t by)
-                           ^
-  7 warnings generated.
-  In file included from ..\..\..\Source\main.c:3:
-  In file included from ..\..\..\Source/game.h:3:
-..\..\..\Source/cranberry_math.h(153,20): warning : unused function 'cranm_normalize3' [-Wunused-function]
-  static cranm_vec_t cranm_normalize3(cranm_vec_t v)
-                     ^
-..\..\..\Source/cranberry_math.h(273,21): warning : unused function 'cranm_axis_angleq' [-Wunused-function]
-  static cranm_quat_t cranm_axis_angleq(cranm_vec_t axis, float angle)
-                      ^
-..\..\..\Source/cranberry_math.h(280,21): warning : unused function 'cranm_inverseq' [-Wunused-function]
-  static cranm_quat_t cranm_inverseq(cranm_quat_t q)
-                      ^
-..\..\..\Source/cranberry_math.h(303,23): warning : unused function 'cranm_identity4x4' [-Wunused-function]
-  static cranm_mat4x4_t cranm_identity4x4()
-                        ^
-..\..\..\Source/cranberry_math.h(310,23): warning : unused function 'cranm_mul4x4' [-Wunused-function]
-  static cranm_mat4x4_t cranm_mul4x4(cranm_mat4x4_t l, cranm_mat4x4_t r)
-                        ^
+..\..\..\Source\main.c(205,38): warning : unused parameter 'argv' [-Wunused-parameter]
+  sapp_desc sokol_main(int argc, char* argv[])
+                                       ^
   In file included from ..\..\..\Source\main.c:15:
 ..\..\..\Source/3rd/sokol_app.h(793,29): warning : unused function '_sapp_translate_key' [-Wunused-function]
   _SOKOL_PRIVATE sapp_keycode _sapp_translate_key(int scan_code) {
                               ^
-  6 warnings generated.
+  5 warnings generated.
   LINK : /LTCG specified but no code generation required; remove /LTCG from the link command line to improve linker performance
   TransformHierarchy.vcxproj -> C:\Users\Alexandre\Desktop\Development\CranberryKing\CranberryKing_TransformHierarchy\Project\TransformHierarchy\x64\Release\TransformHierarchy.exe
   TransformHierarchy.vcxproj -> C:\Users\Alexandre\Desktop\Development\CranberryKing\CranberryKing_TransformHierarchy\Project\TransformHierarchy\x64\Release\TransformHierarchy.pdb (Full PDB)
