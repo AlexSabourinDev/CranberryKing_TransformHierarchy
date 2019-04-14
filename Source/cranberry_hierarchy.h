@@ -511,9 +511,11 @@ void cranh_write_global(cranh_hierarchy_t* hierarchy, cranh_handle_t handle, cra
 
 	cranh_dirty_scheme_header_t* dirtyScheme = cranh_get_dirty_scheme(hierarchy, header);
 
-	cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, header, index);
-	if (parentHandle.value != cranh_invalid_handle)
+	// If we're a child transform index, that means we have a parent
+	if (index < header->currentChildTransformCount)
 	{
+		cranh_handle_t parentHandle = *cranh_get_parent(hierarchy, header, index);
+
 		// Parent should be in the same group as the child
 		// unsigned int parentGroup = cranh_group_from_handle(parentHandle);
 		unsigned int parentIndex = cranh_index_from_handle(parentHandle);
